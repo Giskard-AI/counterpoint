@@ -1,7 +1,11 @@
-from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Type, TypeVar
 
-Role = Literal["system", "user", "assistant", "tool", "developer"]
+from litellm import Message as LiteLLMMessage
+from pydantic import BaseModel
+
+from counterpoint.tools import ToolCall
+
+Role = Literal["assistant", "user", "system", "tool"]
 
 
 class TextContent(BaseModel):
@@ -22,12 +26,32 @@ class ThinkingContent(BaseModel):
     thinking: str
 
 
-Content = TextContent | ThinkingContent
+Content = TextContent | ThinkingContent | None
+
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class Message(BaseModel):
     role: Role
-    content: str | Content | list[Content]
+    content: str | Content | list[Content] = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
+
+    def to_litellm(self) -> dict:
+        msg = self.model_dump(include={"role", "content", "tool_calls", "tool_call_id"})
+        return msg
+
+    @classmethod
+    def from_litellm(cls, msg: LiteLLMMessage | dict):
+        return cls(
+            role=msg["role"],
+            content=msg["content"],
+            tool_calls=msg["tool_calls"],
+        )
+
+    def parse(self, model_type: Type[T]) -> T:
+        return model_type.model_validate_json(self.content)
 
 
 class Chat(BaseModel):
