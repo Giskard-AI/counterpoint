@@ -20,6 +20,7 @@ chats = await generator.chat("Hello, how are you?").run_many(n=3)
 ```python
 import counterpoint as cp
 
+@cp.tool
 def get_weather(city: str) -> str:
     """Get the weather in a city.
 
