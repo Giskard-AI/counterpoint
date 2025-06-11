@@ -30,28 +30,25 @@ class Response(BaseModel):
 
 
 class Generator(BaseModel):
-    """A generator for creating chat completion pipelines.
-
-    Attributes
-    ----------
-    model : str
-        The model identifier to use (e.g. 'gemini/gemini-2.0-flash').
-    """
+    """A generator for creating chat completion pipelines."""
 
     model: str = Field(
         description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
     )
+    params: GenerationParams = Field(default_factory=GenerationParams)
 
     async def _complete(
         self, messages: list[Message], params: GenerationParams | None = None
     ) -> Response:
-        params_ = {}
+        params_ = self.params.model_dump(exclude={"tools"})
 
-        if params:
-            params_ = params.model_dump(exclude={"tools"})
+        if params is not None:
+            params_.update(params.model_dump(exclude={"tools"}))
 
-        if params.tools:
-            params_["tools"] = [t.to_litellm_function() for t in params.tools]
+        # Now special handling of the tools
+        tools = self.params.tools + (params.tools if params is not None else [])
+        if tools:
+            params_["tools"] = [t.to_litellm_function() for t in tools]
 
         response = await acompletion(
             messages=[m.to_litellm() for m in messages],
