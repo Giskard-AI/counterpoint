@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Any, List, Literal
+import asyncio
+from typing import TYPE_CHECKING, Literal
 
 from litellm import acompletion
 from pydantic import BaseModel, Field
 
 from .chat import Message
+from .tools.tool import Tool
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -14,12 +16,12 @@ class GenerationParams(BaseModel):
 
     Attributes
     ----------
-    tools : List[Any], optional
+    tools : list[Any], optional
         List of tools available to the model.
     """
 
     temperature: float = Field(default=1.0)
-    tools: List[Any] = Field(default_factory=list)
+    tools: list[Tool] = Field(default_factory=list)
 
 
 class Response(BaseModel):
@@ -40,9 +42,32 @@ class Generator(BaseModel):
         description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
     )
 
+    async def _complete(
+        self, messages: list[Message], params: GenerationParams | None = None
+    ) -> Response:
+        params_ = {}
+
+        if params:
+            params_ = params.model_dump(exclude={"tools"})
+
+        if params.tools:
+            params_["tools"] = [t.to_litellm_function() for t in params.tools]
+
+        response = await acompletion(
+            messages=[m.to_litellm() for m in messages],
+            model=self.model,
+            **params_,
+        )
+
+        choice = response.choices[0]
+        return Response(
+            message=Message.from_litellm(choice.message),
+            finish_reason=choice.finish_reason,
+        )
+
     async def complete(
-        self, messages: List[Message], params: GenerationParams | None = None
-    ) -> Message:
+        self, messages: list[Message], params: GenerationParams | None = None
+    ) -> Response:
         """Get a completion from the model.
 
         Parameters
@@ -57,22 +82,28 @@ class Generator(BaseModel):
         Message
             The model's response message.
         """
-        params_ = {}
+        return await self._complete(messages, params)
 
-        if params:
-            params_ = params.model_dump()
+    async def batch_complete(
+        self, messages: list[list[Message]], params: GenerationParams | None = None
+    ) -> list[Response]:
+        """Get a batch of completions from the model.
 
-        response = await acompletion(
-            messages=[m.to_litellm() for m in messages],
-            model=self.model,
-            **params_,
-        )
+        Parameters
+        ----------
+        messages : List[List[Message]]
+            List of lists of messages to send to the model.
+        params : GenerationParams, optional
+            Parameters for the generation.
 
-        choice = response.choices[0]
-        return Response(
-            message=Message.from_litellm(choice.message),
-            finish_reason=choice.finish_reason,
-        )
+        Returns
+        -------
+        list[Response]
+            A list of model's responses.
+        """
+        completion_requests = [self._complete(m, params) for m in messages]
+        responses = await asyncio.gather(*completion_requests)
+        return responses
 
     def chat(self, message: str) -> "Pipeline":
         """Create a new chat pipeline with the given message.

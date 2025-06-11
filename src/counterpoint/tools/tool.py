@@ -3,7 +3,7 @@
 import inspect
 from typing import Any, Callable, Literal, TypeVar
 
-from pydantic import BaseModel, create_model, Field, ConfigDict
+from pydantic import BaseModel, create_model, Field
 
 from ._docstring_parser import parse_docstring
 
@@ -127,6 +127,10 @@ class Tool(BaseModel):
         res = self.fn(*args, **kwargs)
         if inspect.isawaitable(res):
             res = await res
+
+        if isinstance(res, BaseModel):
+            res = res.model_dump()
+
         return res
 
     def to_litellm_function(self) -> dict[str, Any]:

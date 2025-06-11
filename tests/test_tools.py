@@ -2,6 +2,8 @@
 
 from typing import List
 
+
+import counterpoint as cp
 from counterpoint.tools import Tool, tool
 
 
@@ -33,15 +35,54 @@ def test_tool_decorator():
 
     # Check schema
     assert search_web.parameters_schema["type"] == "object"
-    assert list(search_web.parameters_schema["properties"].keys()) == ["query", "max_results"]
+    assert list(search_web.parameters_schema["properties"].keys()) == [
+        "query",
+        "max_results",
+    ]
 
     assert search_web.parameters_schema["properties"]["query"]["type"] == "string"
-    assert search_web.parameters_schema["properties"]["query"]["description"] == "The search query to use."
+    assert (
+        search_web.parameters_schema["properties"]["query"]["description"]
+        == "The search query to use."
+    )
 
-    assert search_web.parameters_schema["properties"]["max_results"]["type"] == "integer"
-    assert search_web.parameters_schema["properties"]["max_results"]["description"] == "Maximum number of documents that should be returned for the call."
+    assert (
+        search_web.parameters_schema["properties"]["max_results"]["type"] == "integer"
+    )
+    assert (
+        search_web.parameters_schema["properties"]["max_results"]["description"]
+        == "Maximum number of documents that should be returned for the call."
+    )
 
     assert search_web.parameters_schema["required"] == ["query"]
 
-
     assert search_web("Q", max_results=5) == ["This is a test", "another test for Q"]
+
+
+async def test_tool_run():
+    """Test that the tool runs correctly."""
+
+    @cp.tool
+    def get_weather(city: str) -> str:
+        """Get the weather in a city.
+
+        Parameters
+        ----------
+        city: str
+            The city to get the weather for.
+        """
+        if city == "Paris":
+            return f"It's raining in {city}."
+
+        return f"It's sunny in {city}."
+
+    generator = cp.Generator(model="gemini/gemini-2.0-flash")
+
+    chat = await (
+        generator.chat("Hello, what's the weather in Paris?")
+        .with_tools(get_weather)
+        .run()
+    )
+
+    assert "rain" in chat.last.content.lower()
+    

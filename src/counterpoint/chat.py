@@ -34,7 +34,7 @@ T = TypeVar("T", bound=BaseModel)
 
 class Message(BaseModel):
     role: Role
-    content: str | Content | list[Content] = None
+    content: str | Content | list[Content] | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
 
@@ -44,11 +44,7 @@ class Message(BaseModel):
 
     @classmethod
     def from_litellm(cls, msg: LiteLLMMessage | dict):
-        return cls(
-            role=msg["role"],
-            content=msg["content"],
-            tool_calls=msg["tool_calls"],
-        )
+        return cls.model_validate(msg.model_dump())
 
     def parse(self, model_type: Type[T]) -> T:
         return model_type.model_validate_json(self.content)
@@ -56,6 +52,7 @@ class Message(BaseModel):
 
 class Chat(BaseModel):
     messages: list[Message]
+    output_model: Type[BaseModel] | None = None
 
     @property
     def last(self) -> Message:
