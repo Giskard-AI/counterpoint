@@ -1,7 +1,8 @@
+import tempfile
 import pytest
 from pathlib import Path
-from counterpoint.templates import MessageTemplate
-from counterpoint.templates.prompts_manager import PromptsManager
+from pydantic import BaseModel
+from counterpoint.templates import MessageTemplate, PromptsManager
 
 
 @pytest.fixture
@@ -50,3 +51,55 @@ async def test_simple_template(prompts_manager):
         messages[0].content
         == "This is a simple prompt that should be rendered as a single user message."
     )
+
+
+def test_pydantic_json_rendering_inline():
+    class Book(BaseModel):
+        title: str
+        description: str
+
+    template = MessageTemplate(
+        role="user",
+        content_template="Hello, consider this content:\n{{ book }}!",
+    )
+
+    book = Book(
+        title="The Great Gatsby",
+        description="The Great Gatsby is a novel by F. Scott Fitzgerald.",
+    )
+
+    message = template.render(book=book)
+
+    assert message.role == "user"
+    expected_json = """{
+    "title": "The Great Gatsby",
+    "description": "The Great Gatsby is a novel by F. Scott Fitzgerald."
+}"""
+    assert message.content == f"Hello, consider this content:\n{expected_json}!"
+
+
+async def test_pydantic_json_rendering_with_prompts_manager():
+    class Book(BaseModel):
+        title: str
+        description: str
+
+    book = Book(
+        title="The Great Gatsby",
+        description="The Great Gatsby is a novel by F. Scott Fitzgerald.",
+    )
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        prompts_manager = PromptsManager(prompts_path=tmp_dir)
+
+        template_path = Path(tmp_dir) / "book.j2"
+        template_path.write_text("Here is a book:\n{{ book }}")
+
+        messages = await prompts_manager.render_template("book.j2", {"book": book})
+
+        assert len(messages) == 1
+        assert messages[0].role == "user"
+        expected_json = """{
+    "title": "The Great Gatsby",
+    "description": "The Great Gatsby is a novel by F. Scott Fitzgerald."
+}"""
+        assert messages[0].content == f"Here is a book:\n{expected_json}"

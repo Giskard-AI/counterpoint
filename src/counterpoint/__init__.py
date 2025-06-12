@@ -3,8 +3,7 @@ from .pipeline import Pipeline
 from .chat import Chat, Message
 from .tools import Tool, tool
 from .rate_limiter import RateLimiterStrategy
-from .templates import MessageTemplate
-from .templates.prompts_manager import set_prompts_path
+from .templates import MessageTemplate, set_prompts_path, get_prompts_manager
 
 __all__ = [
     "Generator",
@@ -15,5 +14,6 @@ __all__ = [
     "tool",
     "MessageTemplate",
     "set_prompts_path",
-    "RateLimiterStrategy"
+    "get_prompts_manager",
+    "RateLimiterStrategy",
 ]

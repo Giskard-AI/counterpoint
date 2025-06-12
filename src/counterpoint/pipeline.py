@@ -6,8 +6,7 @@ from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.generator import GenerationParams, Generator
-from counterpoint.templates.template import MessageTemplate
-from counterpoint.templates.prompts_manager import PromptsManager, get_prompts_manager
+from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
 
 
