@@ -25,6 +25,7 @@ dev = [
     "ipykernel>=6.29.5",
     "pylint-pydantic>=0.3.5",
     "pytest>=8.4.0",
+    "ruff>=0.11.13",
 ]
 
 [tool.pytest.ini_options]
