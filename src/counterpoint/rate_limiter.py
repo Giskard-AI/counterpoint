@@ -13,7 +13,6 @@ class RateLimiterStrategy(BaseModel):
 
 class RateLimiter(BaseModel):
     rpm: int = Field(default=500)
-    tpm: int = Field(default=30000)
     burst_size: int = Field(default=10)
     
     _semaphore: asyncio.Semaphore = PrivateAttr()
