@@ -1,0 +1,80 @@
+from pathlib import Path
+import counterpoint as cp
+from counterpoint.generator import Generator
+from counterpoint.templates.prompts_manager import PromptsManager
+
+
+async def test_single_run(generator):
+    pipeline = cp.Pipeline(generator=generator)
+
+    chat = await (
+        pipeline.chat("Your name is TestBot.", role="system")
+        .chat("What is your name? Answer in one word.", role="user")
+        .run()
+    )
+
+    assert "testbot" in chat.last.content.lower()
+
+
+async def test_run_many(generator):
+    """Test that the pipeline runs correctly."""
+
+    pipeline = cp.Pipeline(generator=generator)
+
+    chats = await pipeline.chat("Hello!", role="user").run_many(n=3)
+
+    assert len(chats) == 3
+
+
+async def test_run_batch(generator):
+    """Test that the pipeline runs correctly."""
+
+    pipeline = cp.Pipeline(generator=generator)
+
+    chats = await pipeline.chat("Hello!", role="user").run_batch(
+        inputs=[{"message": "Hello!"} for _ in range(3)]
+    )
+
+    assert len(chats) == 3
+
+
+async def test_pipeline_with_mixed_templates(generator: Generator):
+    pipeline = cp.Pipeline(
+        generator=generator,
+        prompt_manager=PromptsManager(
+            prompts_path=Path(__file__).parent / "data" / "prompts"
+        ),
+    )
+
+    chat = (
+        await pipeline.template("multi_message.j2")
+        .chat("{{ score }}!", role="assistant")
+        .chat("Well done {{ name }}!", role="user")
+        .with_inputs(
+            name="TestBot",
+            theory="Normandy is actually the center of the universe.",
+            score=100,
+        )
+        .run()
+    )
+
+    assert len(chat.messages) == 5
+
+    assert chat.messages[0].role == "system"
+    assert (
+        "You are an impartial evaluator of scientific theories."
+        in chat.messages[0].content
+    )
+
+    assert chat.messages[1].role == "user"
+    assert (
+        "Normandy is actually the center of the universe." in chat.messages[1].content
+    )
+
+    assert chat.messages[2].role == "assistant"
+    assert "100" in chat.messages[2].content
+
+    assert chat.messages[3].role == "user"
+    assert "Well done TestBot!" in chat.messages[3].content
+
+    assert chat.messages[4].role == "assistant"

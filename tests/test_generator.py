@@ -1,12 +1,11 @@
 from counterpoint.chat import Chat, Message
 from counterpoint.generator import Generator, Message, Response
 from counterpoint.pipeline import Pipeline
+from counterpoint.templates import MessageTemplate
 
 
-async def test_generator_completion():
-    model = "gemini/gemini-2.0-flash"
+async def test_generator_completion(generator: Generator):
 
-    generator = Generator(model=model)
     response = await generator.complete(
         messages=[
             Message(
@@ -23,19 +22,16 @@ async def test_generator_completion():
     assert response.finish_reason == "stop"
 
 
-async def test_generator_chat():
-    model = "gemini/gemini-2.0-flash"
-    generator = Generator(model=model)
+async def test_generator_chat(generator: Generator):
 
     test_message = "Hello, world!"
     pipeline = generator.chat(test_message)
 
     assert isinstance(pipeline, Pipeline)
-    assert pipeline.model == "gemini/gemini-2.0-flash"
     assert len(pipeline.messages) == 1
-    assert isinstance(pipeline.messages[0], Message)
+    assert isinstance(pipeline.messages[0], MessageTemplate)
     assert pipeline.messages[0].role == "user"
-    assert pipeline.messages[0].content == test_message
+    assert pipeline.messages[0].content_template == test_message
 
     chat = await pipeline.run()
 
