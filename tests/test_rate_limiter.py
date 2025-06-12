@@ -1,8 +1,8 @@
-from counterpoint.rate_limiter import RateLimiter
 import datetime
 import asyncio
-import pytest
 import time
+
+from counterpoint.rate_limiter import RateLimiter
 
 
 class MockRateLimitError(Exception):
