@@ -1,10 +1,9 @@
 import asyncio
 import time
-from typing import overload
 import uuid
 
 from pydantic import BaseModel, Field, PrivateAttr
-from contextlib import nullcontext, asynccontextmanager
+from contextlib import asynccontextmanager
 
 
 class RateLimiterStrategy(BaseModel):
@@ -102,4 +101,7 @@ def get_rate_limiter(
     RateLimiter
         The rate limiter.
     """
-    return _rate_limiters[rate_limiter_id]
+    try:
+        return _rate_limiters[rate_limiter_id]
+    except KeyError as err:
+        raise ValueError(f"Rate limiter with id {rate_limiter_id} not found") from err
