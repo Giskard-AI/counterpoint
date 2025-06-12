@@ -249,6 +249,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "griffe" },
+    { name = "jinja2" },
     { name = "litellm" },
     { name = "pydantic" },
     { name = "pytest-asyncio" },
@@ -265,6 +266,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "griffe", specifier = ">=0.27.0" },
+    { name = "jinja2", specifier = ">=3.0.0" },
     { name = "litellm", specifier = ">=1.72.2" },
     { name = "pydantic", specifier = ">=2.11.5" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
