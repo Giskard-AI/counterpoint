@@ -5,7 +5,7 @@ import pytest
 from litellm import ModelResponse
 
 from counterpoint.chat import Chat, Message
-from counterpoint.generator import Generator, Message, Response
+from counterpoint.generator import Generator, Response
 from counterpoint.pipeline import Pipeline
 from counterpoint.rate_limiter import RateLimiter
 from counterpoint.templates import MessageTemplate
@@ -100,7 +100,9 @@ async def test_generator_without_rate_limiter(mock_response):
     with patch("counterpoint.generator.acompletion", return_value=mock_response):
         start_time = time.monotonic()
         for _ in range(3):
-            await generator.complete(messages=[Message(role="user", content="Test message")])
+            await generator.complete(
+                messages=[Message(role="user", content="Test message")]
+            )
         end_time = time.monotonic()
 
     elapsed_time = end_time - start_time
