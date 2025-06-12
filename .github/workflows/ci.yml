@@ -31,7 +31,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      TEST_MODEL: "gemini/gemini-1.5-flash"
+      TEST_MODEL: "gemini/gemini-2.0-flash"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     timeout-minutes: 30
     strategy:
