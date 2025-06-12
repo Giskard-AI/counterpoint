@@ -59,7 +59,7 @@ def test_tool_decorator():
     assert search_web("Q", max_results=5) == ["This is a test", "another test for Q"]
 
 
-async def test_tool_run():
+async def test_tool_run(generator):
     """Test that the tool runs correctly."""
 
     @cp.tool
@@ -76,8 +76,6 @@ async def test_tool_run():
 
         return f"It's sunny in {city}."
 
-    generator = cp.Generator(model="gemini/gemini-2.0-flash")
-
     chat = await (
         generator.chat("Hello, what's the weather in Paris?")
         .with_tools(get_weather)
@@ -85,4 +83,3 @@ async def test_tool_run():
     )
 
     assert "rain" in chat.last.content.lower()
-    

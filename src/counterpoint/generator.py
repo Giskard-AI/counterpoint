@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Literal
 from litellm import acompletion
 from pydantic import BaseModel, Field
 
-from .chat import Message
+from .chat import Message, Role
 from .tools.tool import Tool
 
 if TYPE_CHECKING:
@@ -102,7 +102,7 @@ class Generator(BaseModel):
         responses = await asyncio.gather(*completion_requests)
         return responses
 
-    def chat(self, message: str) -> "Pipeline":
+    def chat(self, message: str, role: Role = "user") -> "Pipeline":
         """Create a new chat pipeline with the given message.
 
         Parameters
@@ -117,5 +117,4 @@ class Generator(BaseModel):
         """
         from .pipeline import Pipeline
 
-        messages = [Message(role="user", content=message)]
-        return Pipeline(generator=self, messages=messages, model=self.model)
+        return Pipeline(generator=self).chat(message, role)

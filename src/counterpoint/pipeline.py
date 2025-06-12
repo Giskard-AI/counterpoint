@@ -4,9 +4,17 @@ from typing import AsyncGenerator, Dict, List, Type, Any, Optional
 
 from pydantic import BaseModel, Field
 
-from counterpoint.chat import Chat, Message
+from counterpoint.chat import Chat, Message, Role
 from counterpoint.generator import GenerationParams, Generator
+from counterpoint.templates.template import MessageTemplate
+from counterpoint.templates.prompts_manager import render_template
 from counterpoint.tools.tool import Tool
+
+
+class TemplateReference(BaseModel):
+    """A reference to a template file that will be loaded at runtime."""
+
+    template_name: str
 
 
 class PipelineStep(BaseModel):
@@ -35,12 +43,38 @@ class Pipeline(BaseModel):
         The generator instance to use for completions.
     """
 
-    messages: List[Message] = Field(default_factory=list)
-    model: str
+    generator: "Generator"
+
+    messages: List[Message | MessageTemplate | TemplateReference] = Field(
+        default_factory=list
+    )
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
-    generator: "Generator"
-    output_model: Type[BaseModel] = None
+    output_model: Type[BaseModel] = Field(default=None)
+
+    def chat(self, message: str | Message, role: Role = "user") -> "Pipeline":
+        """Add a chat message to the pipeline."""
+        if isinstance(message, str):
+            message = MessageTemplate(role=role, content_template=message)
+        self.messages.append(message)
+        return self
+
+    def template(self, template_name: str) -> "Pipeline":
+        """Load messages from a template file.
+
+        Parameters
+        ----------
+        template_name : str
+            The template name in dot notation (e.g., "crescendo.master_prompt")
+
+        Returns
+        -------
+        Pipeline
+            The pipeline instance for method chaining.
+        """
+        template_message = TemplateReference(template_name=template_name)
+        self.messages.append(template_message)
+        return self
 
     def with_tools(self, *tools: Tool):
         """Add tools to the pipeline.
@@ -99,7 +133,7 @@ class Pipeline(BaseModel):
         current_step = None
         current_step_num = 0
         current_chat = Chat(
-            messages=self.messages,
+            messages=_render_messages(self.messages, self.inputs),
             output_model=self.output_model,
         )
         while True:
@@ -128,7 +162,9 @@ class Pipeline(BaseModel):
                 tool_messages = []
                 for tool_call in current_chat.last.tool_calls:
                     tool = self.tools[tool_call.function.name]
-                    tool_response = await tool.run(**json.loads(tool_call.function.arguments))
+                    tool_response = await tool.run(
+                        **json.loads(tool_call.function.arguments)
+                    )
                     tool_messages.append(
                         Message(
                             role="tool",
@@ -180,7 +216,9 @@ class Pipeline(BaseModel):
         List[Chat]
             List of Chat objects containing the conversation messages.
         """
-        return await asyncio.gather(*[self.run() for _ in range(n)])
+        return await asyncio.gather(
+            *[self.run() for _ in range(n)], return_exceptions=True
+        )
 
     async def run_batch(self, inputs: list[dict]):
         """Run a batch of completions with different parameters.
@@ -195,5 +233,25 @@ class Pipeline(BaseModel):
         List[Any]
             List of completion results.
         """
-        # TODO: Implement batch completions
-        pass
+        pipelines = [self.model_copy().with_inputs(**params) for params in inputs]
+
+        return await asyncio.gather(
+            *[pipeline.run() for pipeline in pipelines], return_exceptions=True
+        )
+
+
+def _render_messages(
+    messages: List[Message | MessageTemplate | TemplateReference],
+    inputs: Dict[str, Any],
+) -> List[Message]:
+    """Render the messages with the given inputs."""
+    rendered_messages = []
+    for message in messages:
+        if isinstance(message, MessageTemplate):
+            rendered_messages.append(message.render(**inputs))
+        elif isinstance(message, TemplateReference):
+            template_messages = render_template(message.template_name, inputs)
+            rendered_messages.extend(template_messages)
+        else:
+            rendered_messages.append(message)
+    return rendered_messages
