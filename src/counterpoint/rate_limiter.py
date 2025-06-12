@@ -7,7 +7,7 @@ from contextlib import nullcontext
 
 
 class RateLimiterStrategy(BaseModel):
-    rate_limiter_name: str = Field(default="global")
+    limiter_id: str = Field(default="global")
     rpm: int = Field(default=500)
     burst_size: int = Field(default=10)
 
@@ -55,11 +55,11 @@ def get_rate_limiter(strategy: RateLimiterStrategy | None = None) -> RateLimiter
     if strategy is None:
         return nullcontext()
 
-    if strategy.rate_limiter_name not in global_models_rate_limiters:
-        global_models_rate_limiters[strategy.rate_limiter_name] = RateLimiter(
+    if strategy.limiter_id not in global_models_rate_limiters:
+        global_models_rate_limiters[strategy.limiter_id] = RateLimiter(
             max_concurrent_requests=strategy.max_concurrent_requests,
             rate_limit_cooldown_interval=strategy.rate_limit_cooldown_interval,
             max_limit_cooldown_interval=strategy.max_limit_cooldown_interval,
         )
         
-    return global_models_rate_limiters[strategy.rate_limiter_name]
+    return global_models_rate_limiters[strategy.limiter_id]
