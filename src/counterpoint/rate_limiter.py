@@ -15,12 +15,14 @@ class RateLimiter(BaseModel):
     rate_limiter_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     strategy: RateLimiterStrategy
 
-    _semaphore: asyncio.Semaphore = PrivateAttr()
     _next_request_time: float = PrivateAttr(default_factory=time.monotonic)
-    _lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
+    _semaphore: asyncio.Semaphore = PrivateAttr()
+    _lock: asyncio.Lock = PrivateAttr()
 
     def model_post_init(self, __context) -> None:
         self._semaphore = asyncio.Semaphore(self.strategy.max_concurrent)
+        self._lock = asyncio.Lock()
+
         _register_rate_limiter(self)
 
     @classmethod
