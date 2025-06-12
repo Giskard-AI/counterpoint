@@ -243,9 +243,9 @@ class Pipeline(BaseModel):
 
     async def _render_messages(self) -> List[Message]:
         rendered_messages = []
-        context_vars = {
-            "_instr_output": _output_instructions(self.output_model),
-        }
+        context_vars = {}
+        if self.output_model is not None:
+            context_vars["_instr_output"] = _output_instructions(self.output_model)
         context_vars.update(self.inputs)
         for message in self.messages:
             if isinstance(message, MessageTemplate):
