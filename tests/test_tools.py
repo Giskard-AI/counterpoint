@@ -58,6 +58,27 @@ def test_tool_decorator():
     assert search_web("Q", max_results=5) == ["This is a test", "another test for Q"]
 
 
+async def test_tool_with_methods():
+    """Test that the tool runs correctly."""
+
+    class Weather:
+        @tool
+        async def get_weather(self, city: str) -> str:
+            """Get the weather in a city."""
+            return f"It's sunny in {city}."
+
+    weather = Weather()
+
+    assert isinstance(weather.get_weather, Tool)
+    assert await weather.get_weather.run(city="Paris") == "It's sunny in Paris."
+
+    # Test calling the tool directly like a regular method
+    assert await weather.get_weather("London") == "It's sunny in London."
+
+    # Test calling with keyword arguments
+    assert await weather.get_weather(city="Tokyo") == "It's sunny in Tokyo."
+
+
 async def test_tool_run(generator):
     """Test that the tool runs correctly."""
 

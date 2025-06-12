@@ -53,7 +53,6 @@ class Tool(BaseModel):
             If the function lacks proper annotations or docstring.
         """
         sig = inspect.signature(fn)
-
         description, parameter_descriptions = parse_docstring(fn, sig)
 
         fields = {}
@@ -151,6 +150,22 @@ class Tool(BaseModel):
         }
 
 
+class ToolMethod:
+    """Descriptor to handle tool methods on classes."""
+
+    def __init__(self, func: Callable):
+        self.func = func
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            # Accessing from class, return unbound tool
+            return Tool.from_callable(self.func)
+
+        # Accessing from instance, create tool from bound method
+        bound_method = self.func.__get__(instance, owner)
+        return Tool.from_callable(bound_method)
+
+
 def tool(func: F) -> Tool:
     """Decorator to create a tool from a function.
 
@@ -165,6 +180,13 @@ def tool(func: F) -> Tool:
     Returns
     -------
     Tool
-        A Tool instance that can be called like the original function.
+        A Tool instance that can be called like the original function, or a ToolDescriptor
+        if applied to a method.
     """
+    # Check if this is a class method by looking for 'self' as first parameter
+    sig = inspect.signature(func)
+    param = next(iter(sig.parameters.keys()))
+    if param == "self":
+        return ToolMethod(func)
+
     return Tool.from_callable(func)
