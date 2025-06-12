@@ -6,7 +6,7 @@ from counterpoint.templates.prompts_manager import PromptsManager
 
 @pytest.fixture
 def prompts_manager():
-    return PromptsManager(Path(__file__).parent / "data" / "prompts")
+    return PromptsManager(prompts_path=Path(__file__).parent / "data" / "prompts")
 
 
 async def test_message_template():
@@ -46,4 +46,7 @@ async def test_simple_template(prompts_manager):
 
     assert len(messages) == 1
     assert messages[0].role == "user"
-    assert messages[0].content == "This is a simple prompt that should be rendered as a single user message."
+    assert (
+        messages[0].content
+        == "This is a simple prompt that should be rendered as a single user message."
+    )

@@ -1,23 +1,20 @@
 from pathlib import Path
 from typing import List, Dict, Any
 
+from pydantic import BaseModel, Field
+
 from counterpoint.chat import Message
 from .message_parser import create_message_environment, render_messages_template
 
 
-class PromptsManager:
+class PromptsManager(BaseModel):
     """Manages prompts path and template loading."""
 
-    def __init__(self, path: Path | None = None):
-        self._prompts_path: Path = path or Path.cwd() / "prompts"
+    prompts_path: Path = Field(default_factory=lambda: Path.cwd() / "prompts")
 
-    def set_prompts_path(self, path: str):
+    def set_prompts_path(self, path: str | Path):
         """Set a custom prompts path."""
-        self._prompts_path = Path(path)
-
-    def get_prompts_path(self) -> Path:
-        """Get the current prompts path."""
-        return self._prompts_path
+        self.prompts_path = Path(path)
 
     async def render_template(
         self, template_name: str, variables: Dict[str, Any] = None
@@ -40,7 +37,7 @@ class PromptsManager:
         # We create a fresh environment for each render to isolate the state
         # between renders. This is slightly inefficient but necessary for the
         # message parser to work correctly.
-        env = create_message_environment(str(self._prompts_path))
+        env = create_message_environment(str(self.prompts_path))
         template = env.get_template(template_name)
 
         messages = await render_messages_template(template, variables)
@@ -52,14 +49,14 @@ class PromptsManager:
 _prompts_manager = PromptsManager()
 
 
+def get_prompts_manager() -> PromptsManager:
+    """Get the global prompts manager."""
+    return _prompts_manager
+
+
 def set_prompts_path(path: str):
     """Set a custom prompts path."""
     _prompts_manager.set_prompts_path(path)
-
-
-def get_prompts_path() -> Path:
-    """Get the current prompts path."""
-    return _prompts_manager.get_prompts_path()
 
 
 async def render_template(

@@ -1,16 +1,11 @@
 from .template import MessageTemplate
-from .message_parser import (
-    create_message_environment,
-    MessageExtension,
-)
-from .prompts_manager import set_prompts_path, render_template
+from .message_parser import MessageExtension
+from .prompts_manager import PromptsManager, set_prompts_path, get_prompts_manager
 
 __all__ = [
     "MessageTemplate",
-    "create_message_environment",
+    "PromptsManager",
     "MessageExtension",
     "set_prompts_path",
-    "add_prompts_path",
-    "get_prompts_paths",
-    "render_template",
+    "get_prompts_manager",
 ]

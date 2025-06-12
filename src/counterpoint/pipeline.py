@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.generator import GenerationParams, Generator
 from counterpoint.templates.template import MessageTemplate
-from counterpoint.templates.prompts_manager import render_template
+from counterpoint.templates.prompts_manager import PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
 
 
@@ -41,6 +41,8 @@ class Pipeline(BaseModel):
         List of tools available to the pipeline.
     generator : Generator
         The generator instance to use for completions.
+    prompt_manager : PromptsManager
+        The prompt manager to use for rendering templates.
     """
 
     generator: "Generator"
@@ -51,6 +53,7 @@ class Pipeline(BaseModel):
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[BaseModel] = Field(default=None)
+    prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
 
     def chat(self, message: str | Message, role: Role = "user") -> "Pipeline":
         """Add a chat message to the pipeline."""
@@ -133,7 +136,7 @@ class Pipeline(BaseModel):
         current_step = None
         current_step_num = 0
         current_chat = Chat(
-            messages=_render_messages(self.messages, self.inputs),
+            messages=await self._render_messages(),
             output_model=self.output_model,
         )
         while True:
@@ -239,19 +242,16 @@ class Pipeline(BaseModel):
             *[pipeline.run() for pipeline in pipelines], return_exceptions=True
         )
 
-
-def _render_messages(
-    messages: List[Message | MessageTemplate | TemplateReference],
-    inputs: Dict[str, Any],
-) -> List[Message]:
-    """Render the messages with the given inputs."""
-    rendered_messages = []
-    for message in messages:
-        if isinstance(message, MessageTemplate):
-            rendered_messages.append(message.render(**inputs))
-        elif isinstance(message, TemplateReference):
-            template_messages = render_template(message.template_name, inputs)
-            rendered_messages.extend(template_messages)
-        else:
-            rendered_messages.append(message)
-    return rendered_messages
+    async def _render_messages(self) -> List[Message]:
+        rendered_messages = []
+        for message in self.messages:
+            if isinstance(message, MessageTemplate):
+                rendered_messages.append(message.render(**self.inputs))
+            elif isinstance(message, TemplateReference):
+                template_messages = await self.prompt_manager.render_template(
+                    message.template_name, self.inputs
+                )
+                rendered_messages.extend(template_messages)
+            else:
+                rendered_messages.append(message)
+        return rendered_messages
