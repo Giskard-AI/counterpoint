@@ -3,7 +3,7 @@
 import inspect
 from typing import Any, Callable, Literal, TypeVar
 
-from pydantic import BaseModel, create_model, Field
+from pydantic import BaseModel, Field, create_model
 
 from ._docstring_parser import parse_docstring
 
@@ -141,12 +141,6 @@ class Tool(BaseModel):
         dict[str, Any]
             A dictionary in the LiteLLM function format.
         """
-        # Create the parameters object
-        parameters = {
-            "type": "object",
-            "properties": {},
-        }
-
         return {
             "type": "function",
             "function": {

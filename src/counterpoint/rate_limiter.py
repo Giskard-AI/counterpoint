@@ -1,9 +1,9 @@
 import asyncio
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 from pydantic import BaseModel, Field, PrivateAttr
-from contextlib import asynccontextmanager
 
 
 class RateLimiterStrategy(BaseModel):

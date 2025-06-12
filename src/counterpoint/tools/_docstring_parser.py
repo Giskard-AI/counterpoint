@@ -31,8 +31,8 @@ from contextlib import contextmanager
 from inspect import Signature
 from typing import Any, Callable, Literal, cast
 
-from griffe import Docstring, DocstringSectionKind, Object as GriffeObject
-
+from griffe import Docstring, DocstringSectionKind
+from griffe import Object as GriffeObject
 
 DocstringStyle = Literal["google", "numpy", "sphinx"]
 

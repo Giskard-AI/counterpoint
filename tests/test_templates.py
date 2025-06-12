@@ -1,7 +1,9 @@
 import tempfile
-import pytest
 from pathlib import Path
+
+import pytest
 from pydantic import BaseModel
+
 from counterpoint.templates import MessageTemplate, PromptsManager
 
 

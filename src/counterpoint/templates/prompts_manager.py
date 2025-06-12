@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from jinja2 import Template
 from pydantic import BaseModel, Field
 
 from counterpoint.chat import Message
+
 from .environment import create_message_environment
 
 

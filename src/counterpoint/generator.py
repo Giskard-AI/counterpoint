@@ -6,8 +6,8 @@ from litellm import acompletion
 from pydantic import BaseModel, Field, field_validator
 
 from .chat import Message, Role
-from .tools.tool import Tool
 from .rate_limiter import RateLimiter, get_rate_limiter
+from .tools.tool import Tool
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline

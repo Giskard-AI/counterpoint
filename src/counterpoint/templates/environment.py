@@ -1,9 +1,10 @@
-from typing import Any
 import json
+from typing import Any
+
+from jinja2 import Environment, StrictUndefined, nodes
 from jinja2.ext import Extension
 from jinja2.loaders import FileSystemLoader
 from pydantic import BaseModel
-from jinja2 import Environment, StrictUndefined, nodes
 
 from counterpoint.chat import Message
 

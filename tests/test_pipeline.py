@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import counterpoint as cp
 from counterpoint.generator import Generator
 from counterpoint.templates.prompts_manager import PromptsManager

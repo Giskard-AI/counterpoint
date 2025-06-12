@@ -2,7 +2,6 @@
 
 from typing import List
 
-
 import counterpoint as cp
 from counterpoint.tools import Tool, tool
 
