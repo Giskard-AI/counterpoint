@@ -1,0 +1,54 @@
+name: Full CI
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre_checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install deps & build base images
+        run: uv sync --all-extras
+
+      - name: Check linting
+        run: make check_linting
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      TEST_MODEL: "gemini/gemini-1.5-flash"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.13"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install deps & build base images
+        run: uv sync --all-extras
+
+      - name: Run the tests
+        run: uv run pytest
