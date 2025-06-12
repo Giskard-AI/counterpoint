@@ -1,6 +1,5 @@
 import datetime
 import asyncio
-import multiprocessing
 
 import litellm
 from pydantic import BaseModel, Field, PrivateAttr
@@ -29,22 +28,18 @@ class RateLimiter(BaseModel):
     )
     rate_limit_error_class: type[Exception] = Field(default=litellm.RateLimitError)
 
-    _multiprocessing_manager = PrivateAttr()
     _semaphore = PrivateAttr()
     _next_request_time: datetime.datetime | None = PrivateAttr()
     _current_cooldown_count: int = PrivateAttr()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._multiprocessing_manager = multiprocessing.Manager()
-        self._semaphore = self._multiprocessing_manager.Semaphore(
-            self.max_concurrent_requests
-        )
+        self._semaphore = asyncio.Semaphore(self.max_concurrent_requests)
         self._next_request_time = None
         self._current_cooldown_count = 0
 
     async def acquire(self):
-        self._semaphore.acquire()
+        await self._semaphore.acquire()
 
         if (
             self._next_request_time is not None
