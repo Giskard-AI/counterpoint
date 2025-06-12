@@ -243,14 +243,22 @@ class Pipeline(BaseModel):
 
     async def _render_messages(self) -> List[Message]:
         rendered_messages = []
+        context_vars = {
+            "_instr_output": _output_instructions(self.output_model),
+        }
+        context_vars.update(self.inputs)
         for message in self.messages:
             if isinstance(message, MessageTemplate):
-                rendered_messages.append(message.render(**self.inputs))
+                rendered_messages.append(message.render(**context_vars))
             elif isinstance(message, TemplateReference):
                 template_messages = await self.prompt_manager.render_template(
-                    message.template_name, self.inputs
+                    message.template_name, context_vars
                 )
                 rendered_messages.extend(template_messages)
             else:
                 rendered_messages.append(message)
         return rendered_messages
+
+
+def _output_instructions(output_model: Type[BaseModel]) -> str:
+    return f"Provide your answer in JSON format, respecting this schema:\n{output_model.model_json_schema()}"

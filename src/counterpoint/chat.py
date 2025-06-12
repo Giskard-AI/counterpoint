@@ -52,7 +52,7 @@ class Message(BaseModel):
 
 class Chat(BaseModel):
     messages: list[Message]
-    output_model: Type[BaseModel] | None = None
+    output_model: Type[T] | None = None
 
     @property
     def last(self) -> Message:
@@ -61,3 +61,9 @@ class Chat(BaseModel):
     @property
     def transcript(self) -> str:
         return "\n".join([f"[{m.role}]: {m.content}" for m in self.messages])
+
+    @property
+    def output(self) -> T:
+        if self.output_model is None:
+            raise ValueError("Output model not set")
+        return self.last.parse(self.output_model)
