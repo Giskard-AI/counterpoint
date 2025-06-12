@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from .chat import Message
 from .tools.tool import Tool
+from .rate_limiter import get_rate_limiter, RateLimiterStrategy
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -23,7 +24,6 @@ class GenerationParams(BaseModel):
     temperature: float = Field(default=1.0)
     tools: list[Tool] = Field(default_factory=list)
 
-
 class Response(BaseModel):
     message: Message
     finish_reason: Literal["stop", "length", "tool_calls"] | None
@@ -36,6 +36,7 @@ class Generator(BaseModel):
         description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
     )
     params: GenerationParams = Field(default_factory=GenerationParams)
+    rate_limiter_strategy: RateLimiterStrategy | None = Field(default=None)
 
     async def _complete(
         self, messages: list[Message], params: GenerationParams | None = None
@@ -50,11 +51,13 @@ class Generator(BaseModel):
         if tools:
             params_["tools"] = [t.to_litellm_function() for t in tools]
 
-        response = await acompletion(
-            messages=[m.to_litellm() for m in messages],
-            model=self.model,
-            **params_,
-        )
+
+        async with get_rate_limiter(self.rate_limiter_strategy):
+            response = await acompletion(
+                messages=[m.to_litellm() for m in messages],
+                model=self.model,
+                **params_,
+            )
 
         choice = response.choices[0]
         return Response(
