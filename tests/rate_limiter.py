@@ -2,6 +2,7 @@ from counterpoint.rate_limiter import RateLimiter
 import datetime
 import asyncio
 import pytest
+import time
 
 
 class MockRateLimitError(Exception):
@@ -13,15 +14,8 @@ async def mock_job(rate_limiter: RateLimiter):
         return datetime.datetime.now()
 
 
-async def mock_job_with_error(rate_limiter: RateLimiter):
-    async with rate_limiter:
-        raise MockRateLimitError()
-
-
-async def test_rate_limiter_acquire_release():
-    rate_limiter = RateLimiter(
-        rate_limit_error_class=MockRateLimitError,
-    )
+async def test_rate_limiter_max_concurrent_requests():
+    rate_limiter = RateLimiter()
 
     # Lock all threads
     for _ in range(10):
@@ -35,7 +29,7 @@ async def test_rate_limiter_acquire_release():
 
     # Unlock a thread
     unlock_time = datetime.datetime.now()
-    await rate_limiter.release()
+    rate_limiter.release()
 
     # Task should be released
     await asyncio.wait_for(task, timeout=1.0)
@@ -43,67 +37,19 @@ async def test_rate_limiter_acquire_release():
     assert task.result() > unlock_time
 
 
-async def test_rate_limiter_cooldown():
-    rate_limiter = RateLimiter(
-        rate_limit_error_class=MockRateLimitError,
-    )
+async def test_rate_limiter_throttle_rate():
+    rate_limiter = RateLimiter()
 
-    # First error should trigger cooldown
-    with pytest.raises(MockRateLimitError):
-        start_time = datetime.datetime.now()
-        await mock_job_with_error(rate_limiter)
-
-    # Second error should trigger cooldown exponentially
-    with pytest.raises(MockRateLimitError):
-        start_time = datetime.datetime.now()
-        await mock_job_with_error(rate_limiter)
-        assert datetime.datetime.now() - start_time > datetime.timedelta(
-            seconds=1
-        ) and datetime.datetime.now() - start_time < datetime.timedelta(seconds=2)
-
-    # No error should reset cooldown
-    start_time = datetime.datetime.now()
-    await mock_job(rate_limiter)
-    assert datetime.datetime.now() - start_time > datetime.timedelta(
-        seconds=2
-    ) and datetime.datetime.now() - start_time < datetime.timedelta(seconds=3)
-
-    start_time = datetime.datetime.now()
-    await mock_job(rate_limiter)
-    assert datetime.datetime.now() - start_time < datetime.timedelta(seconds=1)
-
-    with pytest.raises(MockRateLimitError):
-        start_time = datetime.datetime.now()
-        await mock_job_with_error(rate_limiter)
-
-    start_time = datetime.datetime.now()
-    await mock_job(rate_limiter)
-    assert datetime.datetime.now() - start_time > datetime.timedelta(
-        seconds=1
-    ) and datetime.datetime.now() - start_time < datetime.timedelta(seconds=2)
-
-
-async def test_rate_limiter_cooldown_with_max_limit_cooldown_interval():
-    rate_limiter = RateLimiter(
-        rate_limit_error_class=MockRateLimitError,
-        max_limit_cooldown_interval=datetime.timedelta(seconds=1),
-    )
-
-    # First error should trigger cooldown
-    with pytest.raises(MockRateLimitError):
-        start_time = datetime.datetime.now()
-        await mock_job_with_error(rate_limiter)
-
-    # Second error should reach max cooldown interval
-    with pytest.raises(MockRateLimitError):
-        start_time = datetime.datetime.now()
-        await mock_job_with_error(rate_limiter)
-        assert datetime.datetime.now() - start_time > datetime.timedelta(
-            seconds=1
-        ) and datetime.datetime.now() - start_time < datetime.timedelta(seconds=2)
-
-    start_time = datetime.datetime.now()
-    await mock_job(rate_limiter)
-    assert datetime.datetime.now() - start_time > datetime.timedelta(
-        seconds=1
-    ) and datetime.datetime.now() - start_time < datetime.timedelta(seconds=2)
+    throttle = 1 / 500
+    start_time = time.monotonic()
+    for i in range(10):
+        async with rate_limiter:
+            pass
+        assert time.monotonic() - start_time > throttle * i and time.monotonic() - start_time < throttle * (i + 1)
+    
+    # No throttle should be applied
+    await asyncio.sleep(throttle)
+    start_time = time.monotonic()
+    async with rate_limiter:
+        pass
+    assert time.monotonic() - start_time < throttle
