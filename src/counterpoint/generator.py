@@ -1,12 +1,13 @@
 import asyncio
-from typing import TYPE_CHECKING, Literal
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, AsyncContextManager, Literal
 
 from litellm import acompletion
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .chat import Message, Role
 from .tools.tool import Tool
-from .rate_limiter import get_rate_limiter, RateLimiterStrategy
+from .rate_limiter import RateLimiter, get_rate_limiter, RateLimiterStrategy
 
 if TYPE_CHECKING:
     from .pipeline import Pipeline
@@ -24,6 +25,7 @@ class GenerationParams(BaseModel):
     temperature: float = Field(default=1.0)
     tools: list[Tool] = Field(default_factory=list)
 
+
 class Response(BaseModel):
     message: Message
     finish_reason: Literal["stop", "length", "tool_calls"] | None
@@ -36,7 +38,13 @@ class Generator(BaseModel):
         description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
     )
     params: GenerationParams = Field(default_factory=GenerationParams)
-    rate_limiter_strategy: RateLimiterStrategy | None = Field(default=None)
+    rate_limiter: RateLimiter | None = Field(default=None, validate_default=True)
+
+    @field_validator("rate_limiter", mode="before")
+    def _validate_rate_limiter(cls, v: RateLimiter | str | None) -> RateLimiter | None:
+        if isinstance(v, str):
+            return get_rate_limiter(v)
+        return v
 
     async def _complete(
         self, messages: list[Message], params: GenerationParams | None = None
@@ -51,8 +59,7 @@ class Generator(BaseModel):
         if tools:
             params_["tools"] = [t.to_litellm_function() for t in tools]
 
-
-        async with get_rate_limiter(self.rate_limiter_strategy):
+        async with self._rate_limiter_context():
             response = await acompletion(
                 messages=[m.to_litellm() for m in messages],
                 model=self.model,
@@ -64,6 +71,12 @@ class Generator(BaseModel):
             message=Message.from_litellm(choice.message),
             finish_reason=choice.finish_reason,
         )
+
+    def _rate_limiter_context(self) -> AsyncContextManager:
+        if self.rate_limiter is None:
+            return nullcontext()
+
+        return self.rate_limiter.throttle()
 
     async def complete(
         self, messages: list[Message], params: GenerationParams | None = None
