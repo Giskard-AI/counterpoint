@@ -1,9 +1,10 @@
 from pathlib import Path
 
+from pydantic import BaseModel
+
 import counterpoint as cp
 from counterpoint.generator import Generator
 from counterpoint.templates.prompts_manager import PromptsManager
-from pydantic import BaseModel
 
 
 async def test_single_run(generator):
