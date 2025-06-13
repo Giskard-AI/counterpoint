@@ -1,4 +1,4 @@
-from typing import Literal, Type, TypeVar
+from typing import Generic, Literal, Type, TypeVar
 
 from litellm import Message as LiteLLMMessage
 from pydantic import BaseModel, Field
@@ -31,6 +31,7 @@ Content = TextContent | ThinkingContent | None
 
 
 T = TypeVar("T", bound=BaseModel)
+OutputType = TypeVar("OutputType", bound=BaseModel)
 
 
 class Message(BaseModel):
@@ -51,9 +52,9 @@ class Message(BaseModel):
         return model_type.model_validate_json(self.content)
 
 
-class Chat(BaseModel):
+class Chat(BaseModel, Generic[OutputType]):
     messages: list[Message]
-    output_model: Type[T] | None = None
+    output_model: Type[OutputType] | None = None
     context: RunContext = Field(default_factory=RunContext)
 
     @property
@@ -65,7 +66,7 @@ class Chat(BaseModel):
         return "\n".join([f"[{m.role}]: {m.content}" for m in self.messages])
 
     @property
-    def output(self) -> T:
+    def output(self) -> OutputType:
         if self.output_model is None:
             raise ValueError("Output model not set")
         return self.last.parse(self.output_model)

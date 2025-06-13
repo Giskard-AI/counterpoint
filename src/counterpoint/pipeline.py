@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any, AsyncGenerator, Dict, List, Optional, Type
+from typing import Any, AsyncGenerator, Dict, List, Optional, Type, TypeVar, Generic
 
 from pydantic import BaseModel, Field
 
@@ -27,8 +27,10 @@ class PipelineStep(BaseModel):
 
 StepGenerator = AsyncGenerator[PipelineStep, None]
 
+OutputType = TypeVar("OutputType", bound=BaseModel)
 
-class Pipeline(BaseModel):
+
+class Pipeline(BaseModel, Generic[OutputType]):
     """A pipeline for handling chat completions.
 
     Attributes
@@ -52,7 +54,7 @@ class Pipeline(BaseModel):
     )
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
-    output_model: Type[BaseModel] = Field(default=None)
+    output_model: Type[OutputType] = Field(default=Type[None])
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
 
@@ -97,12 +99,12 @@ class Pipeline(BaseModel):
             self.tools[tool.name] = tool
         return self
 
-    def with_output(self, output_model: Type[BaseModel]):
+    def with_output(self, output_model: Type[OutputType]) -> "Pipeline[OutputType]":
         """Set the output model for the pipeline.
 
         Parameters
         ----------
-        output_model : Type[BaseModel]
+        output_model : Type[OutputType]
             The output model to use for the pipeline.
 
         Returns
@@ -137,6 +139,7 @@ class Pipeline(BaseModel):
     async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
         params = GenerationParams(
             tools=list(self.tools.values()),
+            response_format=self.output_model,
         )
 
         current_step = None
@@ -193,7 +196,7 @@ class Pipeline(BaseModel):
                 # All done, no tool calls, we stop here.
                 return
 
-    async def run(self, max_steps: int | None = None) -> Chat:
+    async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
         """Runs the pipeline.
 
         Parameters
@@ -203,7 +206,7 @@ class Pipeline(BaseModel):
 
         Returns
         -------
-        Chat
+        Chat[OutputType]
             A Chat object containing the conversation messages.
         """
         step = None
