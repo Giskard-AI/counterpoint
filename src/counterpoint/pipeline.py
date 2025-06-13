@@ -54,7 +54,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
     )
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
-    output_model: Type[OutputType] = Field(default=Type[None])
+    output_model: Type[OutputType] | None = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
 

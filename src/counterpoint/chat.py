@@ -54,7 +54,7 @@ class Message(BaseModel):
 
 class Chat(BaseModel, Generic[OutputType]):
     messages: list[Message]
-    output_model: Type[OutputType] | None = None
+    output_model: Type[OutputType] | None = Field(default=None)
     context: RunContext = Field(default_factory=RunContext)
 
     @property
