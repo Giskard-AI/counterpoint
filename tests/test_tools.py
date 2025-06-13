@@ -70,7 +70,7 @@ async def test_tool_with_methods():
     weather = Weather()
 
     assert isinstance(weather.get_weather, Tool)
-    assert await weather.get_weather.run(city="Paris") == "It's sunny in Paris."
+    assert await weather.get_weather.run({"city": "Paris"}) == "It's sunny in Paris."
 
     # Test calling the tool directly like a regular method
     assert await weather.get_weather("London") == "It's sunny in London."

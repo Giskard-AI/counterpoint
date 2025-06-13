@@ -1,8 +1,9 @@
 from typing import Literal, Type, TypeVar
 
 from litellm import Message as LiteLLMMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from counterpoint.context import RunContext
 from counterpoint.tools import ToolCall
 
 Role = Literal["assistant", "user", "system", "tool"]
@@ -53,6 +54,7 @@ class Message(BaseModel):
 class Chat(BaseModel):
     messages: list[Message]
     output_model: Type[T] | None = None
+    context: RunContext = Field(default_factory=RunContext)
 
     @property
     def last(self) -> Message:

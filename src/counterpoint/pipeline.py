@@ -5,6 +5,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Type
 from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
+from counterpoint.context import RunContext
 from counterpoint.generator import GenerationParams, Generator
 from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
@@ -53,6 +54,7 @@ class Pipeline(BaseModel):
     inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[BaseModel] = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
+    context: RunContext = Field(default_factory=RunContext)
 
     def chat(self, message: str | Message, role: Role = "user") -> "Pipeline":
         """Add a chat message to the pipeline."""
@@ -127,7 +129,12 @@ class Pipeline(BaseModel):
         self.inputs.update(kwargs)
         return self
 
-    async def _run_steps(self, steps: int | None = None) -> StepGenerator:
+    def with_context(self, context: RunContext) -> "Pipeline":
+        """Set the context for the pipeline."""
+        self.context = context
+        return self
+
+    async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
         params = GenerationParams(
             tools=list(self.tools.values()),
         )
@@ -137,9 +144,10 @@ class Pipeline(BaseModel):
         current_chat = Chat(
             messages=await self._render_messages(),
             output_model=self.output_model,
+            context=self.context.model_copy(),
         )
         while True:
-            if steps is not None and current_step_num >= steps:
+            if max_steps is not None and current_step_num >= max_steps:
                 break
 
             response = await self.generator.complete(current_chat.messages, params)
@@ -148,6 +156,7 @@ class Pipeline(BaseModel):
             current_chat = Chat(
                 messages=current_chat.messages + [response.message],
                 output_model=self.output_model,
+                context=current_chat.context,
             )
 
             current_step = PipelineStep(
@@ -165,7 +174,8 @@ class Pipeline(BaseModel):
                 for tool_call in current_chat.last.tool_calls:
                     tool = self.tools[tool_call.function.name]
                     tool_response = await tool.run(
-                        **json.loads(tool_call.function.arguments)
+                        json.loads(tool_call.function.arguments),
+                        ctx=current_step.chats[0].context,
                     )
                     tool_messages.append(
                         Message(
@@ -177,17 +187,18 @@ class Pipeline(BaseModel):
                 current_chat = Chat(
                     messages=current_chat.messages + tool_messages,
                     output_model=self.output_model,
+                    context=current_chat.context,
                 )
             else:
                 # All done, no tool calls, we stop here.
                 return
 
-    async def run(self, steps: int | None = None) -> Chat:
+    async def run(self, max_steps: int | None = None) -> Chat:
         """Runs the pipeline.
 
         Parameters
         ----------
-        steps : int, optional
+        max_steps : int, optional
             The number of steps to run. If not provided, the pipeline will run until the chat is complete.
 
         Returns
@@ -197,7 +208,7 @@ class Pipeline(BaseModel):
         """
         step = None
 
-        async for step in self._run_steps(steps):
+        async for step in self._run_steps(max_steps):
             pass
 
         if step is not None:
@@ -205,13 +216,15 @@ class Pipeline(BaseModel):
 
         raise RuntimeError("Pipeline step failed.")
 
-    async def run_many(self, n: int):
+    async def run_many(self, n: int, max_steps: int | None = None):
         """Run multiple completions in parallel.
 
         Parameters
         ----------
         n : int
             Number of parallel completions to run.
+        max_steps : int, optional
+            The maximum number of steps to run for each completion.
 
         Returns
         -------
@@ -219,16 +232,18 @@ class Pipeline(BaseModel):
             List of Chat objects containing the conversation messages.
         """
         return await asyncio.gather(
-            *[self.run() for _ in range(n)], return_exceptions=True
+            *[self.run(max_steps=max_steps) for _ in range(n)], return_exceptions=True
         )
 
-    async def run_batch(self, inputs: list[dict]):
+    async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Run a batch of completions with different parameters.
 
         Parameters
         ----------
         params_list : list[dict]
             List of parameter dictionaries for each completion.
+        max_steps : int, optional
+            The maximum number of steps to run for each completion.
 
         Returns
         -------
@@ -238,7 +253,8 @@ class Pipeline(BaseModel):
         pipelines = [self.model_copy().with_inputs(**params) for params in inputs]
 
         return await asyncio.gather(
-            *[pipeline.run() for pipeline in pipelines], return_exceptions=True
+            *[pipeline.run(max_steps=max_steps) for pipeline in pipelines],
+            return_exceptions=True,
         )
 
     async def _render_messages(self) -> List[Message]:
