@@ -252,14 +252,10 @@ class Pipeline(BaseModel, Generic[OutputType]):
         List[Chat]
             List of Chat objects containing the conversation messages.
         """
-
-        should_return_exceptions = self.error_mode != "raise"
-        results = await asyncio.gather(
+        return await asyncio.gather(
             *[self.run(max_steps=max_steps) for _ in range(n)],
-            return_exceptions=should_return_exceptions,
+            return_exceptions=self.error_mode != "raise",
         )
-
-        return results
 
     async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Run a batch of completions with different parameters.
@@ -280,7 +276,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
 
         return await asyncio.gather(
             *[pipeline.run(max_steps=max_steps) for pipeline in pipelines],
-            return_exceptions=True,
+            return_exceptions=self.error_mode != "raise",
         )
 
     async def _render_messages(self) -> List[Message]:

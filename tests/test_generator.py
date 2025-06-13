@@ -35,7 +35,6 @@ async def test_generator_completion_with_mock(generator: Generator, mock_respons
 
 
 async def test_generator_completion(generator: Generator):
-
     response = await generator.complete(
         messages=[
             Message(
@@ -53,7 +52,6 @@ async def test_generator_completion(generator: Generator):
 
 
 async def test_generator_chat(generator: Generator):
-
     test_message = "Hello, world!"
     pipeline = generator.chat(test_message)
 

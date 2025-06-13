@@ -48,7 +48,6 @@ def test_run_context_basic_functionality():
 
 
 async def test_tool_context_injection():
-
     context = RunContext()
 
     assert count_tool.run_context_param == "context"
