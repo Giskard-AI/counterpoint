@@ -142,12 +142,15 @@ class Pipeline(BaseModel, Generic[OutputType]):
             response_format=self.output_model,
         )
 
+        context = self.context.model_copy()
+        context.inputs = self.inputs.copy()
+
         current_step = None
         current_step_num = 0
         current_chat = Chat(
             messages=await self._render_messages(),
             output_model=self.output_model,
-            context=self.context.model_copy(),
+            context=context,
         )
         while True:
             if max_steps is not None and current_step_num >= max_steps:
