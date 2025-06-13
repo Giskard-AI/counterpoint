@@ -69,7 +69,7 @@ chat = await (
 For more complicated prompts you can define your template in a separate file. First tell `counterpoint` where to find the templates (you probably want to do this in your `__init__.py` file):
 
 ```python
-cp.set_templates_path("path/to/the/prompts")
+cp.set_prompts_path("path/to/the/prompts")
 ```
 
 Write your templates in jinja2:
