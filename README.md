@@ -48,6 +48,26 @@ chat = await (
 )
 ```
 
+## Structured output
+
+You can specify the output model for the pipeline, and this will be passed to
+each completion call:
+
+```python
+class SimpleOutput(BaseModel):
+    mood: str
+    greeting: str
+
+chat = await (
+    generator.chat("Hello!")
+    .with_output(SimpleOutput)
+    .run()
+)
+
+assert isinstance(chat.output, SimpleOutput)
+assert chat.output.mood == "happy"
+```
+
 ## Inputs and templates
 
 ### Inline templates

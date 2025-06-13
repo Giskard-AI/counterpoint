@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, AsyncContextManager, Literal
+from typing import TYPE_CHECKING, AsyncContextManager, Literal, Type
 
 from litellm import acompletion
 from pydantic import BaseModel, Field, field_validator
@@ -23,6 +23,7 @@ class GenerationParams(BaseModel):
     """
 
     temperature: float = Field(default=1.0)
+    response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
 
 
@@ -79,7 +80,9 @@ class Generator(BaseModel):
         return self.rate_limiter.throttle()
 
     async def complete(
-        self, messages: list[Message], params: GenerationParams | None = None
+        self,
+        messages: list[Message],
+        params: GenerationParams | None = None,
     ) -> Response:
         """Get a completion from the model.
 
@@ -87,8 +90,6 @@ class Generator(BaseModel):
         ----------
         messages : List[Message]
             List of messages to send to the model.
-        tools : List[Any], optional
-            List of tools available to the model.
 
         Returns
         -------
@@ -134,7 +135,7 @@ class Generator(BaseModel):
         from .pipeline import Pipeline
 
         return Pipeline(generator=self).chat(message, role)
-    
+
     def template(self, template_name: str) -> "Pipeline":
         """Create a new chat pipeline with the given message.
 

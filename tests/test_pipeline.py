@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from pydantic import BaseModel
+
 import counterpoint as cp
 from counterpoint.generator import Generator
 from counterpoint.templates.prompts_manager import PromptsManager
@@ -79,3 +81,19 @@ async def test_pipeline_with_mixed_templates(generator: Generator):
     assert "Well done TestBot!" in chat.messages[3].content
 
     assert chat.messages[4].role == "assistant"
+
+
+async def test_output_format(generator):
+    pipeline = cp.Pipeline(generator=generator)
+
+    class SimpleOutput(BaseModel):
+        mood: str
+        greeting: str
+
+    chat = (
+        await pipeline.chat("Hello! Answer in JSON.", role="user")
+        .with_output(SimpleOutput)
+        .run()
+    )
+
+    assert isinstance(chat.output, SimpleOutput)
