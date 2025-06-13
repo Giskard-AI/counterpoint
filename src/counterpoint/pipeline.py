@@ -1,6 +1,16 @@
 import asyncio
 import json
-from typing import Any, AsyncGenerator, Dict, Generic, List, Optional, Type, TypeVar
+from typing import (
+    Any,
+    AsyncGenerator,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+)
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +36,8 @@ class PipelineStep(BaseModel):
 
 
 StepGenerator = AsyncGenerator[PipelineStep, None]
+OnErrorAction = Literal["raise", "pass"]
+
 
 OutputType = TypeVar("OutputType", bound=BaseModel)
 
@@ -57,6 +69,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
     output_model: Type[OutputType] | None = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
+    error_mode: OnErrorAction = Field(default="raise")
 
     def chat(self, message: str | Message, role: Role = "user") -> "Pipeline":
         """Add a chat message to the pipeline."""
@@ -134,6 +147,11 @@ class Pipeline(BaseModel, Generic[OutputType]):
     def with_context(self, context: RunContext) -> "Pipeline":
         """Set the context for the pipeline."""
         self.context = context
+        return self
+
+    def on_error(self, error_mode: OnErrorAction) -> "Pipeline":
+        """Set the error handling behavior for the pipeline."""
+        self.error_mode = error_mode
         return self
 
     async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
@@ -234,9 +252,14 @@ class Pipeline(BaseModel, Generic[OutputType]):
         List[Chat]
             List of Chat objects containing the conversation messages.
         """
-        return await asyncio.gather(
-            *[self.run(max_steps=max_steps) for _ in range(n)], return_exceptions=True
+
+        should_return_exceptions = self.error_mode != "raise"
+        results = await asyncio.gather(
+            *[self.run(max_steps=max_steps) for _ in range(n)],
+            return_exceptions=should_return_exceptions,
         )
+
+        return results
 
     async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Run a batch of completions with different parameters.
