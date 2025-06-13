@@ -7,6 +7,7 @@ class RunContext(BaseModel):
     """Context object that tools can use to store and retrieve information across turns."""
 
     data: dict[str, Any] = Field(default_factory=dict)
+    inputs: dict[str, Any] = Field(default_factory=dict)
 
     def set(self, key: str, value: Any) -> None:
         """Store a value in the context.
