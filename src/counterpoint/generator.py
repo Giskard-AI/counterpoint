@@ -134,3 +134,20 @@ class Generator(BaseModel):
         from .pipeline import Pipeline
 
         return Pipeline(generator=self).chat(message, role)
+    
+    def template(self, template_name: str) -> "Pipeline":
+        """Create a new chat pipeline with the given message.
+
+        Parameters
+        ----------
+        template_path : str
+            The path to the template file.
+
+        Returns
+        -------
+        Pipeline
+            A Pipeline object that can be used to run the completion.
+        """
+        from .pipeline import Pipeline
+
+        return Pipeline(generator=self).template(template_name)
