@@ -5,6 +5,8 @@ from typing import Any, Callable, Literal, TypeVar
 
 from pydantic import BaseModel, Field, create_model
 
+from counterpoint.context import RunContext
+
 from ._docstring_parser import parse_docstring
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -33,6 +35,8 @@ class Tool(BaseModel):
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
     fn: Callable
 
+    run_context_param: str | None = Field(default=None)
+
     @classmethod
     def from_callable(cls, fn: Callable) -> "Tool":
         """Create a Tool from a callable function.
@@ -56,11 +60,18 @@ class Tool(BaseModel):
         description, parameter_descriptions = parse_docstring(fn, sig)
 
         fields = {}
+        run_context_param = None
+
         for name, param in sig.parameters.items():
             if param.annotation is inspect.Parameter.empty:
                 raise ValueError(
                     f"Tool `{fn.__name__}` parameter `{name}` must have a type annotation"
                 )
+
+            # Check if this parameter is a RunContext
+            if param.annotation is RunContext:
+                run_context_param = name
+                continue  # Skip adding RunContext to the schema
 
             field = Field(
                 default=(
@@ -83,6 +94,7 @@ class Tool(BaseModel):
             description=description,
             parameters_schema=model.model_json_schema(),
             fn=fn,
+            run_context_param=run_context_param,
         )
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -105,7 +117,9 @@ class Tool(BaseModel):
         """
         return self.fn(*args, **kwargs)
 
-    async def run(self, *args: Any, **kwargs: Any) -> Any:
+    async def run(
+        self, arguments: dict[str, Any], ctx: RunContext | None = None
+    ) -> Any:
         """Run the tool's function asynchronously.
 
         This method handles both sync and async functions by awaiting
@@ -113,17 +127,23 @@ class Tool(BaseModel):
 
         Parameters
         ----------
-        *args : Any
-            Positional arguments to pass to the function.
-        **kwargs : Any
-            Keyword arguments to pass to the function.
+        arguments : dict[str, Any]
+            Arguments to pass to the function.
+        ctx : RunContext | None, optional
+            The run context to inject if the tool expects it.
 
         Returns
         -------
         Any
             The result of calling the function.
         """
-        res = self.fn(*args, **kwargs)
+
+        # Inject the context if the tool expects it
+        if ctx and self.run_context_param:
+            arguments = arguments.copy()
+            arguments[self.run_context_param] = ctx
+
+        res = self.fn(**arguments)
         if inspect.isawaitable(res):
             res = await res
 

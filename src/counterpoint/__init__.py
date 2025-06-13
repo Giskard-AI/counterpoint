@@ -1,4 +1,5 @@
 from .chat import Chat, Message
+from .context import RunContext
 from .generator import Generator
 from .pipeline import Pipeline
 from .rate_limiter import RateLimiter, RateLimiterStrategy
@@ -17,4 +18,5 @@ __all__ = [
     "get_prompts_manager",
     "RateLimiterStrategy",
     "RateLimiter",
+    "RunContext",
 ]
