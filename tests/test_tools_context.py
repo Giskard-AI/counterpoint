@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 from counterpoint.chat import Message
 from counterpoint.context import RunContext
-from counterpoint.generators.base import Response
 from counterpoint.generators import BaseGenerator
+from counterpoint.generators.base import Response
 from counterpoint.pipeline import Pipeline
 from counterpoint.tools import Function, ToolCall, tool
 

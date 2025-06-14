@@ -1,6 +1,6 @@
 from .base import BaseGenerator, GenerationParams, Response
-from .mixins import WithRateLimiter
 from .litellm_generator import LiteLLMGenerator
+from .mixins import WithRateLimiter
 
 # Default generator uses LiteLLM
 Generator = LiteLLMGenerator
