@@ -160,7 +160,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
             response_format=self.output_model,
         )
 
-        context = self.context.model_copy()
+        context = self.context.model_copy(deep=True)
         context.inputs = self.inputs.copy()
 
         current_step = None
