@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 import counterpoint as cp
-from counterpoint.generator import Generator
+from counterpoint.generators.litellm_generator import LiteLLMGenerator
 from counterpoint.templates.prompts_manager import PromptsManager
 
 
@@ -41,7 +41,7 @@ async def test_run_batch(generator):
     assert len(chats) == 3
 
 
-async def test_pipeline_with_mixed_templates(generator: Generator):
+async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
     pipeline = cp.Pipeline(
         generator=generator,
         prompt_manager=PromptsManager(

@@ -5,7 +5,8 @@ import pytest
 from litellm import ModelResponse
 
 from counterpoint.chat import Chat, Message
-from counterpoint.generator import Generator, Response
+from counterpoint.generators.base import Response
+from counterpoint.generators.litellm_generator import LiteLLMGenerator
 from counterpoint.pipeline import Pipeline
 from counterpoint.rate_limiter import RateLimiter
 from counterpoint.templates import MessageTemplate
@@ -23,8 +24,8 @@ def mock_response():
     )
 
 
-async def test_generator_completion_with_mock(generator: Generator, mock_response):
-    with patch("counterpoint.generator.acompletion", return_value=mock_response):
+async def test_litellm_generator_completion_with_mock(generator: LiteLLMGenerator, mock_response):
+    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
         response = await generator.complete(
             messages=[Message(role="user", content="Test message")]
         )
@@ -34,7 +35,7 @@ async def test_generator_completion_with_mock(generator: Generator, mock_respons
         assert response.finish_reason == "stop"
 
 
-async def test_generator_completion(generator: Generator):
+async def test_generator_completion(generator: LiteLLMGenerator):
     response = await generator.complete(
         messages=[
             Message(
@@ -51,7 +52,7 @@ async def test_generator_completion(generator: Generator):
     assert response.finish_reason == "stop"
 
 
-async def test_generator_chat(generator: Generator):
+async def test_generator_chat(generator: LiteLLMGenerator):
     test_message = "Hello, world!"
     pipeline = generator.chat(test_message)
 
@@ -73,10 +74,10 @@ async def test_generator_chat(generator: Generator):
     assert isinstance(chats[2], Chat)
 
 
-async def test_generator_gets_rate_limiter(mock_response):
+async def test_litellm_generator_gets_rate_limiter(mock_response):
     rate_limiter = RateLimiter.from_rpm(rpm=60, max_concurrent=1)
-    generator = Generator(model="test-model", rate_limiter=rate_limiter)
-    with patch("counterpoint.generator.acompletion", return_value=mock_response):
+    generator = LiteLLMGenerator(model="test-model", rate_limiter=rate_limiter)
+    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
         start_time = time.monotonic()
         for _ in range(3):
             await generator.complete(
@@ -94,8 +95,8 @@ async def test_generator_gets_rate_limiter(mock_response):
 
 
 async def test_generator_without_rate_limiter(mock_response):
-    generator = Generator(model="test-model")
-    with patch("counterpoint.generator.acompletion", return_value=mock_response):
+    generator = LiteLLMGenerator(model="test-model")
+    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
         start_time = time.monotonic()
         for _ in range(3):
             await generator.complete(
@@ -109,5 +110,5 @@ async def test_generator_without_rate_limiter(mock_response):
 
 async def test_generator_rate_limiter_context():
     rate_limiter = RateLimiter.from_rpm(rpm=100, rate_limiter_id="test")
-    generator = Generator(model="test-model", rate_limiter="test")
+    generator = LiteLLMGenerator(model="test-model", rate_limiter="test")
     assert generator.rate_limiter is rate_limiter
