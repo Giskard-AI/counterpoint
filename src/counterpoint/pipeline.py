@@ -275,7 +275,9 @@ class Pipeline(BaseModel, Generic[OutputType]):
         List[Any]
             List of completion results.
         """
-        pipelines = [self.model_copy().with_inputs(**params) for params in inputs]
+        pipelines = [
+            self.model_copy(deep=True).with_inputs(**params) for params in inputs
+        ]
 
         return await asyncio.gather(
             *[pipeline.run(max_steps=max_steps) for pipeline in pipelines],
@@ -323,7 +325,9 @@ class Pipeline(BaseModel, Generic[OutputType]):
         Chat
             Chat objects as they complete.
         """
-        pipelines = [self.model_copy().with_inputs(**params) for params in inputs]
+        pipelines = [
+            self.model_copy(deep=True).with_inputs(**params) for params in inputs
+        ]
         tasks = [pipeline.run(max_steps=max_steps) for pipeline in pipelines]
 
         for coro in asyncio.as_completed(tasks):
