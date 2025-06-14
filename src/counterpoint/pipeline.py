@@ -282,6 +282,59 @@ class Pipeline(BaseModel, Generic[OutputType]):
             return_exceptions=self.error_mode != "raise",
         )
 
+    async def stream_many(self, n: int, max_steps: int | None = None):
+        """Stream multiple completions as they complete.
+
+        Parameters
+        ----------
+        n : int
+            Number of parallel completions to run.
+        max_steps : int, optional
+            The maximum number of steps to run for each completion.
+
+        Yields
+        ------
+        Chat
+            Chat objects as they complete.
+        """
+        tasks = [self.run(max_steps=max_steps) for _ in range(n)]
+
+        for coro in asyncio.as_completed(tasks):
+            try:
+                result = await coro
+                yield result
+            except Exception as e:
+                if self.error_mode == "raise":
+                    raise
+                yield e
+
+    async def stream_batch(self, inputs: list[dict], max_steps: int | None = None):
+        """Stream a batch of completions as they complete.
+
+        Parameters
+        ----------
+        inputs : list[dict]
+            List of parameter dictionaries for each completion.
+        max_steps : int, optional
+            The maximum number of steps to run for each completion.
+
+        Yields
+        ------
+        Chat
+            Chat objects as they complete.
+        """
+        pipelines = [self.model_copy().with_inputs(**params) for params in inputs]
+        tasks = [pipeline.run(max_steps=max_steps) for pipeline in pipelines]
+
+        for coro in asyncio.as_completed(tasks):
+            try:
+                result = await coro
+                yield result
+            except Exception as e:
+                if self.error_mode == "raise":
+                    raise
+                yield e
+
     async def _render_messages(self) -> List[Message]:
         rendered_messages = []
         context_vars = {}
