@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 from counterpoint.chat import Message
 from counterpoint.context import RunContext
-from counterpoint.generator import Generator, Response
+from counterpoint.generators import BaseGenerator
+from counterpoint.generators.base import Response
 from counterpoint.pipeline import Pipeline
 from counterpoint.tools import Function, ToolCall, tool
 
@@ -69,7 +70,7 @@ def test_tool_context_not_in_params():
 
 
 async def test_pipeline_calls_context():
-    generator = MagicMock(spec=Generator)
+    generator = MagicMock(spec=BaseGenerator)
     generator.complete.return_value = Response(
         message=Message(
             role="assistant",

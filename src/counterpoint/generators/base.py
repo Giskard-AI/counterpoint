@@ -1,16 +1,19 @@
 import asyncio
-from contextlib import nullcontext
-from typing import TYPE_CHECKING, AsyncContextManager, Literal, Type
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Literal, Type
 
-from litellm import acompletion
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from .chat import Message, Role
-from .rate_limiter import RateLimiter, get_rate_limiter
-from .tools.tool import Tool
+from ..chat import Message, Role
+from ..tools import Tool
 
 if TYPE_CHECKING:
-    from .pipeline import Pipeline
+    from ..pipeline import Pipeline
+
+
+class Response(BaseModel):
+    message: Message
+    finish_reason: Literal["stop", "length", "tool_calls"] | None
 
 
 class GenerationParams(BaseModel):
@@ -27,57 +30,15 @@ class GenerationParams(BaseModel):
     tools: list[Tool] = Field(default_factory=list)
 
 
-class Response(BaseModel):
-    message: Message
-    finish_reason: Literal["stop", "length", "tool_calls"] | None
+class BaseGenerator(BaseModel, ABC):
+    """Base class for all generators."""
 
-
-class Generator(BaseModel):
-    """A generator for creating chat completion pipelines."""
-
-    model: str = Field(
-        description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
-    )
     params: GenerationParams = Field(default_factory=GenerationParams)
-    rate_limiter: RateLimiter | None = Field(default=None, validate_default=True)
 
-    @field_validator("rate_limiter", mode="before")
-    def _validate_rate_limiter(cls, v: RateLimiter | str | None) -> RateLimiter | None:
-        if isinstance(v, str):
-            return get_rate_limiter(v)
-        return v
-
+    @abstractmethod
     async def _complete(
         self, messages: list[Message], params: GenerationParams | None = None
-    ) -> Response:
-        params_ = self.params.model_dump(exclude={"tools"})
-
-        if params is not None:
-            params_.update(params.model_dump(exclude={"tools"}))
-
-        # Now special handling of the tools
-        tools = self.params.tools + (params.tools if params is not None else [])
-        if tools:
-            params_["tools"] = [t.to_litellm_function() for t in tools]
-
-        async with self._rate_limiter_context():
-            response = await acompletion(
-                messages=[m.to_litellm() for m in messages],
-                model=self.model,
-                **params_,
-            )
-
-        choice = response.choices[0]
-        return Response(
-            message=Message.from_litellm(choice.message),
-            finish_reason=choice.finish_reason,
-        )
-
-    def _rate_limiter_context(self) -> AsyncContextManager:
-        if self.rate_limiter is None:
-            return nullcontext()
-
-        return self.rate_limiter.throttle()
+    ) -> Response: ...
 
     async def complete(
         self,
@@ -90,6 +51,8 @@ class Generator(BaseModel):
         ----------
         messages : List[Message]
             List of messages to send to the model.
+        params: GenerationParams | None
+            Parameters for the generation.
 
         Returns
         -------
@@ -132,7 +95,7 @@ class Generator(BaseModel):
         Pipeline
             A Pipeline object that can be used to run the completion.
         """
-        from .pipeline import Pipeline
+        from ..pipeline import Pipeline
 
         return Pipeline(generator=self).chat(message, role)
 
@@ -149,6 +112,6 @@ class Generator(BaseModel):
         Pipeline
             A Pipeline object that can be used to run the completion.
         """
-        from .pipeline import Pipeline
+        from ..pipeline import Pipeline
 
         return Pipeline(generator=self).template(template_name)
