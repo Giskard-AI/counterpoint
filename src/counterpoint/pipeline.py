@@ -67,7 +67,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[OutputType] | None = Field(default=None)
-    temperature: float | None = Field(default=None)
+    temperature: float = Field(default=1.0)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
     error_mode: OnErrorAction = Field(default="raise")
