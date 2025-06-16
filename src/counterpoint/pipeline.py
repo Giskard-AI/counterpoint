@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
-from counterpoint.generator import GenerationParams, Generator
+from counterpoint.generators import BaseGenerator, GenerationParams
 from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
 
@@ -53,13 +53,13 @@ class Pipeline(BaseModel, Generic[OutputType]):
         The model identifier to use for completions.
     tools : List[Any]
         List of tools available to the pipeline.
-    generator : Generator
+    generator : BaseGenerator
         The generator instance to use for completions.
     prompt_manager : PromptsManager
         The prompt manager to use for rendering templates.
     """
 
-    generator: "Generator"
+    generator: "BaseGenerator"
 
     messages: List[Message | MessageTemplate | TemplateReference] = Field(
         default_factory=list
