@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class Response(BaseModel):
     message: Message
-    finish_reason: Literal["stop", "length", "tool_calls", "content_filter"] | None
+    finish_reason: Literal["stop", "length", "tool_calls", "content_filter", "null"] | None
 
 
 class GenerationParams(BaseModel):
