@@ -12,7 +12,7 @@ from typing import (
     TypeVar,
 )
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
@@ -170,11 +170,29 @@ class Pipeline(BaseModel, Generic[OutputType]):
             output_model=self.output_model,
             context=context,
         )
+        
         while True:
             if max_steps is not None and current_step_num >= max_steps:
                 break
 
-            response = await self.generator.complete(current_chat.messages, params)
+            # Retry logic for the completion step
+            for attempt in range(3):
+                try:
+                    response = await self.generator.complete(current_chat.messages, params)
+                    if self.output_model is not None:
+                        parsed = response.message.parse(self.output_model)
+                    break
+                except Exception as e:
+                    print(f"Error during completion: attempt {attempt + 1} of 3, retrying...")
+                    print(f"Using model: {self.generator.model}")
+                    if attempt == 2:  # Last attempt
+                        if self.error_mode == "raise":
+                            raise
+                        else:
+                            # Return early on error if not raising
+                            return
+                    # Wait before retrying (exponential backoff)
+                    await asyncio.sleep(2 ** attempt)
 
             current_step_num += 1
             current_chat = Chat(
@@ -196,18 +214,32 @@ class Pipeline(BaseModel, Generic[OutputType]):
             if current_chat.last.tool_calls:
                 tool_messages = []
                 for tool_call in current_chat.last.tool_calls:
-                    tool = self.tools[tool_call.function.name]
-                    tool_response = await tool.run(
-                        json.loads(tool_call.function.arguments),
-                        ctx=current_step.chats[0].context,
-                    )
-                    tool_messages.append(
-                        Message(
-                            role="tool",
-                            tool_call_id=tool_call.id,
-                            content=json.dumps(tool_response),
-                        )
-                    )
+                    # Retry logic for tool execution
+                    for attempt in range(3):
+                        try:
+                            tool = self.tools[tool_call.function.name]
+                            tool_response = await tool.run(
+                                json.loads(tool_call.function.arguments),
+                                ctx=current_step.chats[0].context,
+                            )
+                            tool_messages.append(
+                                Message(
+                                    role="tool",
+                                    tool_call_id=tool_call.id,
+                                    content=json.dumps(tool_response),
+                                )
+                            )
+                            break
+                        except ValidationError as e:
+                            if attempt == 2:  # Last attempt
+                                if self.error_mode == "raise":
+                                    raise
+                                else:
+                                    # Skip this tool call and continue
+                                    continue
+                            # Wait before retrying (exponential backoff)
+                            await asyncio.sleep(2 ** attempt)
+                
                 current_chat = Chat(
                     messages=current_chat.messages + tool_messages,
                     output_model=self.output_model,
