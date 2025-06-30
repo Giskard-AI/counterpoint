@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Type, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, Type
 
 from pydantic import BaseModel, Field
 
@@ -28,9 +28,6 @@ class GenerationParams(BaseModel):
     temperature: float = Field(default=1.0)
     response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
-
-
-GenerationParamsKwargs = TypedDict('GenerationParamsKwargs', **{k: v.annotation for k, v in GenerationParams.model_fields.items()}, total=False)
 
 class BaseGenerator(BaseModel, ABC):
     """Base class for all generators."""
@@ -118,7 +115,7 @@ class BaseGenerator(BaseModel, ABC):
 
         return Pipeline(generator=self).template(template_name)
 
-    def with_params(self, **kwargs: GenerationParamsKwargs) -> "BaseGenerator":
+    def with_params(self, **kwargs: Any) -> "BaseGenerator":
         """Create a new generator with the given parameters.
 
         Parameters
