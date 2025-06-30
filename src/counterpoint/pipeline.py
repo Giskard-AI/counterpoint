@@ -67,7 +67,6 @@ class Pipeline(BaseModel, Generic[OutputType]):
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[OutputType] | None = Field(default=None)
-    temperature: float = Field(default=1.0)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
     error_mode: OnErrorAction = Field(default="raise")
@@ -155,16 +154,10 @@ class Pipeline(BaseModel, Generic[OutputType]):
         self.error_mode = error_mode
         return self
 
-    def with_temperature(self, temperature: float) -> "Pipeline":
-        """Set the temperature for the pipeline."""
-        self.temperature = temperature
-        return self
-
     async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
         params = GenerationParams(
             tools=list(self.tools.values()),
             response_format=self.output_model,
-            temperature=self.temperature,
         )
 
         context = self.context.model_copy(deep=True)

@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Type
+from typing import TYPE_CHECKING, Any, Literal, Type, TypedDict, NotRequired
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +29,8 @@ class GenerationParams(BaseModel):
     response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
 
+
+GenerationParamsKwargs = TypedDict('GenerationParamsKwargs', **{k: v.annotation for k, v in GenerationParams.model_fields.items()}, total=False)
 
 class BaseGenerator(BaseModel, ABC):
     """Base class for all generators."""
@@ -115,3 +117,20 @@ class BaseGenerator(BaseModel, ABC):
         from ..pipeline import Pipeline
 
         return Pipeline(generator=self).template(template_name)
+
+    def with_params(self, **kwargs: GenerationParamsKwargs) -> "BaseGenerator":
+        """Create a new generator with the given parameters.
+
+        Parameters
+        ----------
+        **kwargs : GenerationParamsKwargs
+            The parameters to set. All fields are optional.
+
+        Returns
+        -------
+        BaseGenerator
+            A new generator with the given parameters.
+        """
+        generator = self.model_copy(deep=True)
+        generator.params = generator.params.model_copy(update=kwargs)
+        return generator
