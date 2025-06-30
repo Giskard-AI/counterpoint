@@ -123,6 +123,6 @@ def test_generator_with_params():
     assert generator.params.temperature == 0.5
 
     int_generator = new_generator.with_params(response_format=int)
-    assert int_generator.params.response_format == int
+    assert int_generator.params.response_format is int
     assert new_generator.params.response_format is None
     assert generator.params.response_format is None
