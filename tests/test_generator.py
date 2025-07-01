@@ -112,3 +112,17 @@ async def test_generator_rate_limiter_context():
     rate_limiter = RateLimiter.from_rpm(rpm=100, rate_limiter_id="test")
     generator = LiteLLMGenerator(model="test-model", rate_limiter="test")
     assert generator.rate_limiter is rate_limiter
+
+def test_generator_with_params():
+    generator = LiteLLMGenerator(model="test-model")
+    generator = generator.with_params(temperature=0.5)
+    assert generator.params.temperature == 0.5
+
+    new_generator = generator.with_params(temperature=0.7)
+    assert new_generator.params.temperature == 0.7
+    assert generator.params.temperature == 0.5
+
+    int_generator = new_generator.with_params(response_format=int)
+    assert int_generator.params.response_format is int
+    assert new_generator.params.response_format is None
+    assert generator.params.response_format is None
