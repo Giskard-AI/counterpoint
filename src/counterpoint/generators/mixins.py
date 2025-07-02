@@ -1,12 +1,13 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from typing import AsyncContextManager, Type
+from typing import AsyncContextManager
 
 import tenacity as t
 from pydantic import BaseModel, Field, field_validator
 
+from ..chat import Message
 from ..rate_limiter import RateLimiter, get_rate_limiter
-from .base import Response
+from .base import GenerationParams, Response
 from .retry import RetryPolicy
 
 
@@ -28,13 +29,37 @@ class WithRateLimiter(BaseModel):
         return self.rate_limiter.throttle()
 
 
-class WithRetryPolicy(BaseModel):
+class WithRetryPolicy(BaseModel, ABC):
     """Adds a retry policy to the generator."""
 
     retry_policy: RetryPolicy | None = Field(default=RetryPolicy(max_retries=3))
 
     @abstractmethod
     def _should_retry(self, err: Exception) -> bool: ...
+
+    @abstractmethod
+    async def _complete_once(
+        self, messages: list[Message], params: GenerationParams | None = None
+    ) -> Response:
+        """Complete a single request without retry logic.
+
+        This method should be implemented by concrete generators to provide
+        the actual completion logic. The retry policy will be applied by
+        the _complete method.
+
+        Parameters
+        ----------
+        messages : list[Message]
+            List of messages to send to the model.
+        params : GenerationParams | None
+            Parameters for the generation.
+
+        Returns
+        -------
+        Response
+            The model's response.
+        """
+        ...
 
     def with_retries(
         self,
@@ -51,9 +76,11 @@ class WithRetryPolicy(BaseModel):
 
         return self.model_copy(update={"retry_policy": RetryPolicy(**params)})
 
-    async def complete(self, *args, **kwargs) -> Response:
+    async def _complete(
+        self, messages: list[Message], params: GenerationParams | None = None
+    ) -> Response:
         if self.retry_policy is None:
-            return await super().complete(*args, **kwargs)
+            return await self._complete_once(messages, params)
 
         retrier = t.AsyncRetrying(
             stop=t.stop_after_attempt(self.retry_policy.max_retries),
@@ -62,7 +89,7 @@ class WithRetryPolicy(BaseModel):
             reraise=True,
         )
 
-        return await retrier(super().complete, *args, **kwargs)
+        return await retrier(self._complete_once, messages, params)
 
     def _tenacity_retry_condition(self, retry_state: t.RetryCallState) -> bool:
         return self._should_retry(retry_state.outcome.exception())

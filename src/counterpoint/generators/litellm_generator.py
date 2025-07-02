@@ -17,7 +17,7 @@ class LiteLLMGenerator(WithRateLimiter, WithRetryPolicy, BaseGenerator):
     def _should_retry(self, err: Exception) -> bool:
         return litellm_should_retry(getattr(err, "status_code", 0))
 
-    async def _complete(
+    async def _complete_once(
         self, messages: list[Message], params: GenerationParams | None = None
     ) -> Response:
         params_ = self.params.model_dump(exclude={"tools"})

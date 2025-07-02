@@ -22,7 +22,7 @@ class MockGenerator(WithRetryPolicy, BaseGenerator):
     def _should_retry(self, err: Exception) -> bool:
         return isinstance(err, RetriableError)
 
-    async def _complete(
+    async def _complete_once(
         self, messages: list[Message], params: GenerationParams | None = None
     ) -> Response:
         return await self._complete_mock(messages, params)
@@ -103,5 +103,31 @@ async def test_retries_with_result():
     )
     assert res.message.content == "Test response"
     assert res.finish_reason == "stop"
+
+    assert generator._complete_mock.call_count == 3
+
+
+async def test_retries_works_with_batch_complete():
+    generator = MockGenerator(
+        retry_policy=RetryPolicy(max_retries=3, base_delay=1e-3),
+    )
+    generator._complete_mock.side_effect = [
+        RetriableError("Test error"),
+        RetriableError("Test error"),
+        Response(
+            message=Message(role="assistant", content="Test response"),
+            finish_reason="stop",
+        ),
+    ]
+
+    res = await generator.batch_complete(
+        messages=[
+            [Message(role="user", content="Test message")],
+        ]
+    )
+
+    assert len(res) == 1
+    assert res[0].message.content == "Test response"
+    assert res[0].finish_reason == "stop"
 
     assert generator._complete_mock.call_count == 3
