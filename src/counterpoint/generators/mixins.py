@@ -1,14 +1,13 @@
 from abc import abstractmethod
 from contextlib import nullcontext
-from typing import AsyncContextManager, Type, TypeVar
+from typing import AsyncContextManager, Type
 
 import tenacity as t
 from pydantic import BaseModel, Field, field_validator
 
 from ..rate_limiter import RateLimiter, get_rate_limiter
+from .base import Response
 from .retry import RetryPolicy
-
-T = TypeVar("T")
 
 
 class WithRateLimiter(BaseModel):
@@ -42,7 +41,6 @@ class WithRetryPolicy(BaseModel):
         max_retries: int,
         *,
         base_delay: float | None = None,
-        exception: Type[Exception] | None = None,
     ) -> "WithRetryPolicy":
         params = {"max_retries": max_retries}
 
@@ -53,7 +51,7 @@ class WithRetryPolicy(BaseModel):
 
         return self.model_copy(update={"retry_policy": RetryPolicy(**params)})
 
-    async def complete(self, *args, **kwargs) -> T:
+    async def complete(self, *args, **kwargs) -> Response:
         if self.retry_policy is None:
             return await super().complete(*args, **kwargs)
 
