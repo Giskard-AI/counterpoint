@@ -54,10 +54,10 @@ class Message(BaseModel):
     @property
     def transcript(self) -> str:
         role = self.role
-        if role == "tool":
+        if role == "tool" and self.tool_call_id is not None:
             role += f":{self.tool_call_id}"
 
-        content = self.content if self.content is not None else ""
+        content = str(self.content)
         if self.tool_calls:
             for tool_call in self.tool_calls:
                 content += f"\n>[tool_call:{tool_call.function.name}:{tool_call.id}]: {tool_call.function.arguments}"
