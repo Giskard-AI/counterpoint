@@ -51,6 +51,19 @@ class Message(BaseModel):
     def parse(self, model_type: Type[T]) -> T:
         return model_type.model_validate_json(self.content)
 
+    @property
+    def transcript(self) -> str:
+        role = self.role
+        if role == "tool" and self.tool_call_id is not None:
+            role += f":{self.tool_call_id}"
+
+        content = str(self.content)
+        if self.tool_calls:
+            for tool_call in self.tool_calls:
+                content += f"\n>[tool_call:{tool_call.function.name}:{tool_call.id}]: {tool_call.function.arguments}"
+
+        return f"[{role}]: {content}"
+
 
 class Chat(BaseModel, Generic[OutputType]):
     messages: list[Message]
@@ -63,7 +76,7 @@ class Chat(BaseModel, Generic[OutputType]):
 
     @property
     def transcript(self) -> str:
-        return "\n".join([f"[{m.role}]: {m.content}" for m in self.messages])
+        return "\n".join([m.transcript for m in self.messages])
 
     @property
     def output(self) -> OutputType:
