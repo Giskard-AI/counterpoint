@@ -251,6 +251,7 @@ dependencies = [
     { name = "griffe" },
     { name = "jinja2" },
     { name = "litellm" },
+    { name = "logfire-api" },
     { name = "pydantic" },
     { name = "pytest-asyncio" },
     { name = "typing-extensions" },
@@ -269,6 +270,7 @@ requires-dist = [
     { name = "griffe", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.0.0" },
     { name = "litellm", specifier = ">=1.72.2" },
+    { name = "logfire-api", specifier = ">=3.22.0" },
     { name = "pydantic", specifier = ">=2.11.5" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
@@ -741,6 +743,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/80/d73c821a2f65ee5b97b41e61d9b18324ebb9d616e1e21844f4253ac38957/litellm-1.72.4.tar.gz", hash = "sha256:8855de30f78bcb1f37af244519b37a37faaaf579401b1414400b5b5e5b616d57", size = 8132997 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/0d/0f86db9724b9bd63d057b912aa6aa532a76e6e707f9bb75abbd3b0a0401a/litellm-1.72.4-py3-none-any.whl", hash = "sha256:f98ca994420ed649c466d423655a6e0f2aeecab4564ed372b3378a949e491dc2", size = 8036589 },
+]
+
+[[package]]
+name = "logfire-api"
+version = "3.22.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/d2/4c68de2f855d0166f3f015c3f2caf2c1311a3ac37cd0ed12b2aa3f2ec77c/logfire_api-3.22.0.tar.gz", hash = "sha256:30a1bc8b67b6feaeef59f7ee01270f06748d26d0e797c3cadcd0e68455c650b5", size = 50454 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/3f/fa20041785fc4bec64287a07f40327ed54bb367ac7159a9bdc7fcc88c83a/logfire_api-3.22.0-py3-none-any.whl", hash = "sha256:724f98463845fe893f1b7cbda486b4088593adc31ffb0c7076688d13f2d284ab", size = 84584 },
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ from typing import (
     TypeVar,
 )
 
+import logfire_api as logfire
 from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
@@ -163,6 +164,13 @@ class Pipeline(BaseModel, Generic[OutputType]):
         context = self.context.model_copy(deep=True)
         context.inputs = self.inputs.copy()
 
+        logfire.info(
+            "Starting pipeline steps",
+            params=params,
+            context=context,
+            inputs=self.inputs,
+        )
+
         current_step = None
         current_step_num = 0
         current_chat = Chat(
@@ -170,9 +178,12 @@ class Pipeline(BaseModel, Generic[OutputType]):
             output_model=self.output_model,
             context=context,
         )
-        while True:
-            if max_steps is not None and current_step_num >= max_steps:
-                break
+
+        while max_steps is None or current_step_num < max_steps:
+            logfire.info(
+                "Running generation",
+                current_chat=current_chat,
+            )
 
             response = await self.generator.complete(current_chat.messages, params)
 
@@ -189,6 +200,12 @@ class Pipeline(BaseModel, Generic[OutputType]):
                 previous=current_step,
             )
 
+            logfire.info(
+                "Step completed",
+                transcript=current_chat.transcript,
+                step_num=current_step_num,
+                step=current_step,
+            )
             yield current_step
 
             # If the last message is a tool call, we will run the tools and add
@@ -217,6 +234,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
                 # All done, no tool calls, we stop here.
                 return
 
+    @logfire.instrument("pipeline.run")
     async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
         """Runs the pipeline.
 
@@ -233,6 +251,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
         step = None
 
         async for step in self._run_steps(max_steps):
+            print(step.chats[0].transcript)
             pass
 
         if step is not None:
@@ -240,6 +259,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
 
         raise RuntimeError("Pipeline step failed.")
 
+    @logfire.instrument("pipeline.run_many")
     async def run_many(self, n: int, max_steps: int | None = None):
         """Run multiple completions in parallel.
 
@@ -260,6 +280,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
             return_exceptions=self.error_mode != "raise",
         )
 
+    @logfire.instrument("pipeline.run_batch")
     async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Run a batch of completions with different parameters.
 
