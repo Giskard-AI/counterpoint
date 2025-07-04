@@ -276,7 +276,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
             List of completion results.
         """
         pipelines = [
-            self.model_copy(update={"inputs": {**self.inputs, **params}}) 
+            self.model_copy(update={"inputs": {**self.inputs, **params}})
             for params in inputs
         ]
 
@@ -327,7 +327,7 @@ class Pipeline(BaseModel, Generic[OutputType]):
             Chat objects as they complete.
         """
         pipelines = [
-            self.model_copy(update={"inputs": {**self.inputs, **params}}) 
+            self.model_copy(update={"inputs": {**self.inputs, **params}})
             for params in inputs
         ]
         tasks = [pipeline.run(max_steps=max_steps) for pipeline in pipelines]
