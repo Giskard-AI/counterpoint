@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 
 class Response(BaseModel):
     message: Message
-    finish_reason: Literal["stop", "length", "tool_calls", "content_filter", "null"] | None
+    finish_reason: (
+        Literal["stop", "length", "tool_calls", "content_filter", "null"] | None
+    )
 
 
 class GenerationParams(BaseModel):
@@ -28,6 +30,7 @@ class GenerationParams(BaseModel):
     temperature: float = Field(default=1.0)
     response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
+
 
 class BaseGenerator(BaseModel, ABC):
     """Base class for all generators."""

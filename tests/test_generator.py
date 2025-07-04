@@ -24,8 +24,13 @@ def mock_response():
     )
 
 
-async def test_litellm_generator_completion_with_mock(generator: LiteLLMGenerator, mock_response):
-    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
+async def test_litellm_generator_completion_with_mock(
+    generator: LiteLLMGenerator, mock_response
+):
+    with patch(
+        "counterpoint.generators.litellm_generator.acompletion",
+        return_value=mock_response,
+    ):
         response = await generator.complete(
             messages=[Message(role="user", content="Test message")]
         )
@@ -77,7 +82,10 @@ async def test_generator_chat(generator: LiteLLMGenerator):
 async def test_litellm_generator_gets_rate_limiter(mock_response):
     rate_limiter = RateLimiter.from_rpm(rpm=60, max_concurrent=1)
     generator = LiteLLMGenerator(model="test-model", rate_limiter=rate_limiter)
-    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
+    with patch(
+        "counterpoint.generators.litellm_generator.acompletion",
+        return_value=mock_response,
+    ):
         start_time = time.monotonic()
         for _ in range(3):
             await generator.complete(
@@ -96,7 +104,10 @@ async def test_litellm_generator_gets_rate_limiter(mock_response):
 
 async def test_generator_without_rate_limiter(mock_response):
     generator = LiteLLMGenerator(model="test-model")
-    with patch("counterpoint.generators.litellm_generator.acompletion", return_value=mock_response):
+    with patch(
+        "counterpoint.generators.litellm_generator.acompletion",
+        return_value=mock_response,
+    ):
         start_time = time.monotonic()
         for _ in range(3):
             await generator.complete(
@@ -112,6 +123,7 @@ async def test_generator_rate_limiter_context():
     rate_limiter = RateLimiter.from_rpm(rpm=100, rate_limiter_id="test")
     generator = LiteLLMGenerator(model="test-model", rate_limiter="test")
     assert generator.rate_limiter is rate_limiter
+
 
 def test_generator_with_params():
     generator = LiteLLMGenerator(model="test-model")
