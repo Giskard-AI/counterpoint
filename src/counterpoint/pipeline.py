@@ -251,7 +251,6 @@ class Pipeline(BaseModel, Generic[OutputType]):
         step = None
 
         async for step in self._run_steps(max_steps):
-            print(step.chats[0].transcript)
             pass
 
         if step is not None:
