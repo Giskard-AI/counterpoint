@@ -11,6 +11,7 @@ Role = Literal["assistant", "user", "system", "tool"]
 
 class TextContent(BaseModel):
     type: Literal["text"] = "text"
+    text: str
 
 
 class File(BaseModel):

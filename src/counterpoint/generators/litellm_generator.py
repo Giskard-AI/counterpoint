@@ -1,19 +1,23 @@
+from litellm import _should_retry as litellm_should_retry
 from litellm import acompletion
 from pydantic import Field
 
 from ..chat import Message
 from .base import BaseGenerator, GenerationParams, Response
-from .mixins import WithRateLimiter
+from .mixins import WithRateLimiter, WithRetryPolicy
 
 
-class LiteLLMGenerator(WithRateLimiter, BaseGenerator):
+class LiteLLMGenerator(WithRateLimiter, WithRetryPolicy, BaseGenerator):
     """A generator for creating chat completion pipelines."""
 
     model: str = Field(
         description="The model identifier to use (e.g. 'gemini/gemini-2.0-flash')"
     )
 
-    async def _complete(
+    def _should_retry(self, err: Exception) -> bool:
+        return litellm_should_retry(getattr(err, "status_code", 0))
+
+    async def _complete_once(
         self, messages: list[Message], params: GenerationParams | None = None
     ) -> Response:
         params_ = self.params.model_dump(exclude={"tools"})
