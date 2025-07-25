@@ -60,6 +60,7 @@ class Pipeline(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
     generator: "BaseGenerator"
     messages: List[Message | MessageTemplate | TemplateReference] = Field(default_factory=list)
     tools: Dict[str, Tool] = Field(default_factory=dict)
+    inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[OutputType] | None = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
@@ -137,6 +138,20 @@ class Pipeline(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
         """
         self.output_model = output_model
         return self
+    
+    def with_inputs(self, **kwargs: Any) -> "Pipeline":
+        """Set the input for the pipeline.
+        Parameters
+        ----------
+        **kwargs : Any
+            The input for the pipeline.
+        Returns
+        -------
+        Pipeline
+            The pipeline instance for method chaining.
+        """
+        self.inputs.update(kwargs)
+        return self
 
     def with_context(self, context: RunContext) -> "Pipeline":
         """
@@ -174,11 +189,8 @@ class Pipeline(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
             response_format=self.output_model,
         )
         context = self.context.model_copy(deep=True)
-        
-        if input is None:
-            input = dict()
 
-        context.inputs = input.copy()
+        context.inputs = self.inputs | (input or {})
         context_vars = {}
         if self.output_model is not None:
             context_vars["_instr_output"] = _output_instructions(self.output_model)
