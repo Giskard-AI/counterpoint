@@ -19,67 +19,75 @@ from counterpoint.context import RunContext
 from counterpoint.generators import BaseGenerator, GenerationParams
 from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
-
+from counterpoint.workflow import AsyncWorkflowStep, async_gen_many
 
 class TemplateReference(BaseModel):
     """A reference to a template file that will be loaded at runtime."""
-
     template_name: str
-
 
 class PipelineStep(BaseModel):
     """A step in a pipeline."""
-
     pipeline: "Pipeline"
     chats: List[Chat]
     previous: Optional["PipelineStep"] = Field(default=None)
 
-
 StepGenerator = AsyncGenerator[PipelineStep, None]
-OnErrorAction = Literal["raise", "pass"]
-
 
 OutputType = TypeVar("OutputType", bound=BaseModel)
 
+class Pipeline(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
+    """
+    A pipeline for handling chat completions, compatible with AsyncWorkflowStep.
 
-class Pipeline(BaseModel, Generic[OutputType]):
-    """A pipeline for handling chat completions.
-
-    Attributes
+    Parameters
     ----------
-    messages : List[Message]
-        List of chat messages in the conversation.
-    model : str
-        The model identifier to use for completions.
-    tools : List[Any]
-        List of tools available to the pipeline.
     generator : BaseGenerator
         The generator instance to use for completions.
-    prompt_manager : PromptsManager
+    messages : List[Message | MessageTemplate | TemplateReference], optional
+        List of chat messages, templates, or template references.
+    tools : Dict[str, Tool], optional
+        Dictionary of tools available to the pipeline.
+    output_model : Type[OutputType], optional
+        The output model to use for the pipeline.
+    prompt_manager : PromptsManager, optional
         The prompt manager to use for rendering templates.
+    context : RunContext, optional
+        The context for the pipeline.
+    error_mode : OnErrorAction, optional
+        Error handling behavior ("raise" or "pass").
     """
 
     generator: "BaseGenerator"
-
-    messages: List[Message | MessageTemplate | TemplateReference] = Field(
-        default_factory=list
-    )
+    messages: List[Message | MessageTemplate | TemplateReference] = Field(default_factory=list)
     tools: Dict[str, Tool] = Field(default_factory=dict)
-    inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[OutputType] | None = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
-    error_mode: OnErrorAction = Field(default="raise")
 
     def chat(self, message: str | Message, role: Role = "user") -> "Pipeline":
-        """Add a chat message to the pipeline."""
+        """
+        Add a chat message to the pipeline.
+
+        Parameters
+        ----------
+        message : str | Message
+            The message content or Message object.
+        role : Role, optional
+            The role of the message (default is "user").
+
+        Returns
+        -------
+        Pipeline
+            The pipeline instance for method chaining.
+        """
         if isinstance(message, str):
             message = MessageTemplate(role=role, content_template=message)
         self.messages.append(message)
         return self
 
     def template(self, template_name: str) -> "Pipeline":
-        """Load messages from a template file.
+        """
+        Load messages from a template file.
 
         Parameters
         ----------
@@ -95,8 +103,9 @@ class Pipeline(BaseModel, Generic[OutputType]):
         self.messages.append(template_message)
         return self
 
-    def with_tools(self, *tools: Tool):
-        """Add tools to the pipeline.
+    def with_tools(self, *tools: Tool) -> "Pipeline":
+        """
+        Add tools to the pipeline.
 
         Parameters
         ----------
@@ -113,7 +122,8 @@ class Pipeline(BaseModel, Generic[OutputType]):
         return self
 
     def with_output(self, output_model: Type[OutputType]) -> "Pipeline[OutputType]":
-        """Set the output model for the pipeline.
+        """
+        Set the output model for the pipeline.
 
         Parameters
         ----------
@@ -128,78 +138,72 @@ class Pipeline(BaseModel, Generic[OutputType]):
         self.output_model = output_model
         return self
 
-    def with_inputs(self, **kwargs: Any) -> "Pipeline":
-        """Set the input for the pipeline.
+    def with_context(self, context: RunContext) -> "Pipeline":
+        """
+        Set the context for the pipeline.
 
         Parameters
         ----------
-        **kwargs : Any
-            The input for the pipeline.
+        context : RunContext
+            The context to use for the pipeline.
 
         Returns
         -------
         Pipeline
             The pipeline instance for method chaining.
         """
-        self.inputs.update(kwargs)
-        return self
-
-    def with_context(self, context: RunContext) -> "Pipeline":
-        """Set the context for the pipeline."""
         self.context = context
         return self
 
-    def on_error(self, error_mode: OnErrorAction) -> "Pipeline":
-        """Set the error handling behavior for the pipeline."""
-        self.error_mode = error_mode
-        return self
+    async def run(self, input: dict | None = None) -> OutputType:
+        """
+        Run the pipeline with the given input.
 
-    async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
+        Parameters
+        ----------
+        input : dict
+            The input variables for the pipeline.
+
+        Returns
+        -------
+        OutputType
+            The output of the pipeline, as defined by the output_model.
+        """
         params = GenerationParams(
             tools=list(self.tools.values()),
             response_format=self.output_model,
         )
-
         context = self.context.model_copy(deep=True)
-        context.inputs = self.inputs.copy()
+        
+        if input is None:
+            input = dict()
 
-        current_step = None
-        current_step_num = 0
-        current_chat = Chat(
-            messages=await self._render_messages(),
+        context.inputs = input.copy()
+        context_vars = {}
+        if self.output_model is not None:
+            context_vars["_instr_output"] = _output_instructions(self.output_model)
+        context_vars.update(input)
+        messages = await self._render_messages(context_vars)
+        chat = Chat(
+            messages=messages,
             output_model=self.output_model,
             context=context,
         )
         while True:
-            if max_steps is not None and current_step_num >= max_steps:
-                break
-
-            response = await self.generator.complete(current_chat.messages, params)
-
-            current_step_num += 1
-            current_chat = Chat(
-                messages=current_chat.messages + [response.message],
+            response = await self.generator.complete(chat.messages, params)
+            chat = Chat(
+                messages=chat.messages + [response.message],
                 output_model=self.output_model,
-                context=current_chat.context,
+                context=chat.context,
             )
-
-            current_step = PipelineStep(
-                pipeline=self,
-                chats=[current_chat],
-                previous=current_step,
-            )
-
-            yield current_step
-
-            # If the last message is a tool call, we will run the tools and add
-            # the results to the chat.
-            if current_chat.last.tool_calls:
+            # Tool call handling
+            if chat.last.tool_calls:
                 tool_messages = []
-                for tool_call in current_chat.last.tool_calls:
+                for tool_call in chat.last.tool_calls:
                     tool = self.tools[tool_call.function.name]
                     tool_response = await tool.run(
                         json.loads(tool_call.function.arguments),
-                        ctx=current_step.chats[0].context,
+                        ctx=chat.context,
                     )
                     tool_messages.append(
                         Message(
@@ -208,145 +212,41 @@ class Pipeline(BaseModel, Generic[OutputType]):
                             content=json.dumps(tool_response),
                         )
                     )
-                current_chat = Chat(
-                    messages=current_chat.messages + tool_messages,
+                chat = Chat(
+                    messages=chat.messages + tool_messages,
                     output_model=self.output_model,
-                    context=current_chat.context,
+                    context=chat.context,
                 )
             else:
-                # All done, no tool calls, we stop here.
-                return
-
-    async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
-        """Runs the pipeline.
-
-        Parameters
-        ----------
-        max_steps : int, optional
-            The number of steps to run. If not provided, the pipeline will run until the chat is complete.
-
-        Returns
-        -------
-        Chat[OutputType]
-            A Chat object containing the conversation messages.
-        """
-        step = None
-
-        async for step in self._run_steps(max_steps):
-            pass
-
-        if step is not None:
-            return step.chats[0]
-
-        raise RuntimeError("Pipeline step failed.")
-
-    async def run_many(self, n: int, max_steps: int | None = None):
-        """Run multiple completions in parallel.
-
-        Parameters
-        ----------
-        n : int
-            Number of parallel completions to run.
-        max_steps : int, optional
-            The maximum number of steps to run for each completion.
-
-        Returns
-        -------
-        List[Chat]
-            List of Chat objects containing the conversation messages.
-        """
-        return await asyncio.gather(
-            *[self.run(max_steps=max_steps) for _ in range(n)],
-            return_exceptions=self.error_mode != "raise",
-        )
-
-    async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
-        """Run a batch of completions with different parameters.
-
-        Parameters
-        ----------
-        params_list : list[dict]
-            List of parameter dictionaries for each completion.
-        max_steps : int, optional
-            The maximum number of steps to run for each completion.
-
-        Returns
-        -------
-        List[Any]
-            List of completion results.
-        """
-        pipelines = [
-            self.model_copy(update={"inputs": {**self.inputs, **params}})
-            for params in inputs
-        ]
-
-        return await asyncio.gather(
-            *[pipeline.run(max_steps=max_steps) for pipeline in pipelines],
-            return_exceptions=self.error_mode != "raise",
-        )
-
-    async def stream_many(self, n: int, max_steps: int | None = None):
-        """Stream multiple completions as they complete.
-
-        Parameters
-        ----------
-        n : int
-            Number of parallel completions to run.
-        max_steps : int, optional
-            The maximum number of steps to run for each completion.
-
-        Yields
-        ------
-        Chat
-            Chat objects as they complete.
-        """
-        tasks = [self.run(max_steps=max_steps) for _ in range(n)]
-
-        for coro in asyncio.as_completed(tasks):
-            try:
-                result = await coro
-                yield result
-            except Exception as e:
-                if self.error_mode == "raise":
-                    raise
-                yield e
-
-    async def stream_batch(self, inputs: list[dict], max_steps: int | None = None):
-        """Stream a batch of completions as they complete.
-
-        Parameters
-        ----------
-        inputs : list[dict]
-            List of parameter dictionaries for each completion.
-        max_steps : int, optional
-            The maximum number of steps to run for each completion.
-
-        Yields
-        ------
-        Chat
-            Chat objects as they complete.
-        """
-        pipelines = [
-            self.model_copy(update={"inputs": {**self.inputs, **params}})
-            for params in inputs
-        ]
-        tasks = [pipeline.run(max_steps=max_steps) for pipeline in pipelines]
-
-        for coro in asyncio.as_completed(tasks):
-            try:
-                result = await coro
-                yield result
-            except Exception as e:
-                if self.error_mode == "raise":
-                    raise
-                yield e
-
-    async def _render_messages(self) -> List[Message]:
-        rendered_messages = []
-        context_vars = {}
+                break
         if self.output_model is not None:
-            context_vars["_instr_output"] = _output_instructions(self.output_model)
-        context_vars.update(self.inputs)
+            return chat.output
+        return chat  # fallback if no output_model
+    
+    async def stream_many(self, n: int, input: dict | None = None) -> AsyncGenerator[OutputType, None]:
+        async for result in super().run_stream(async_gen_many(n, input)):
+            yield result
+    
+    async def run_many(self, n: int, input: dict | None = None) -> List[OutputType]:
+        return await super().run_many(n, input)
+    
+
+
+    async def _render_messages(self, context_vars: dict) -> List[Message]:
+        """
+        Render all messages for the pipeline, resolving templates and references.
+
+        Parameters
+        ----------
+        context_vars : dict
+            Variables to use for rendering message templates.
+
+        Returns
+        -------
+        List[Message]
+            The rendered messages.
+        """
+        rendered_messages = []
         for message in self.messages:
             if isinstance(message, MessageTemplate):
                 rendered_messages.append(message.render(**context_vars))
@@ -359,6 +259,18 @@ class Pipeline(BaseModel, Generic[OutputType]):
                 rendered_messages.append(message)
         return rendered_messages
 
-
 def _output_instructions(output_model: Type[BaseModel]) -> str:
+    """
+    Generate output instructions for the model based on the output schema.
+
+    Parameters
+    ----------
+    output_model : Type[BaseModel]
+        The output model class.
+
+    Returns
+    -------
+    str
+        Instructions for formatting the output as JSON.
+    """
     return f"Provide your answer in JSON format, respecting this schema:\n{output_model.model_json_schema()}"

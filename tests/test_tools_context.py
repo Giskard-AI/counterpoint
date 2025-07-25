@@ -86,12 +86,11 @@ async def test_pipeline_calls_context():
 
     pipeline = (
         Pipeline(generator=generator)
-        .with_inputs(name="TestBot")
         .with_tools(count_tool)
         .chat("Increment the count by 1")
     )
 
-    chat = await pipeline.run(max_steps=1)
+    chat = await pipeline.run({"name": "TestBot"})
 
     assert chat.context.get("call_count") == 1
     assert chat.context.inputs["name"] == "TestBot"
