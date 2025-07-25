@@ -231,8 +231,7 @@ class Pipeline(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
                 )
             else:
                 break
-        if self.output_model is not None:
-            return chat.output
+
         return chat  # fallback if no output_model
     
     async def stream_many(self, n: int, input: dict | None = None) -> AsyncGenerator[OutputType, None]:
