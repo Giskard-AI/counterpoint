@@ -17,6 +17,10 @@ NewOutput = TypeVar("NewOutput")
 
 ErrorMode = Literal["raise", "pass"]
 
+class NoOutputError(Exception):
+    """Raised when a workflow step produces no output due to error in 'pass' mode."""
+    pass
+
 async def async_gen_batch(inputs: list[InputType]) -> AsyncGenerator[InputType, None]:
     for item in inputs:
         yield item
@@ -40,6 +44,8 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
         async def run_one(item: InputType):
             try:
                 return await self.run(item)
+            except NoOutputError:
+                return None  # Indicates no output should be yielded
             except Exception as e:
                 if self.error_mode == "raise":
                     raise
@@ -50,6 +56,8 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
 
         for coro in asyncio.as_completed([asyncio.create_task(t) for t in tasks]):
             result = await coro
+            if result is None:
+                continue  # Skip NoOutputError cases - no output to yield
             if isinstance(result, Exception):
                 if self.error_mode == "raise":
                     raise result
@@ -92,7 +100,7 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                 except Exception:
                     if self.error_mode == "raise":
                         raise
-                    return None
+                    raise NoOutputError("Step produced no output due to error in 'pass' mode")
 
             async def run_stream(
                 self, inputs: AsyncIterable[InputType]
@@ -102,6 +110,8 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                         try:
                             result = await next_step.run(item)
                             yield result
+                        except NoOutputError:
+                            continue  # Skip items that produce no output
                         except Exception:
                             if self.error_mode == "raise":
                                 raise
@@ -126,7 +136,7 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                 except Exception:
                     if self.error_mode == "raise":
                         raise
-                    return None
+                    raise NoOutputError("Step produced no output due to error in 'pass' mode")
 
             async def run_stream(
                 self, inputs: AsyncIterable[InputType]
@@ -138,6 +148,7 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                         except Exception:
                             if self.error_mode == "raise":
                                 raise
+                            # In 'pass' mode, simply don't yield anything for failed items
 
             def describe(self) -> str:
                 return f"{parent.describe()} |> map({fn.__name__})"
