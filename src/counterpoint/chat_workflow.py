@@ -12,7 +12,7 @@ from typing import (
 
 import logfire_api as logfire
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
@@ -336,6 +336,12 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
             else:
                 rendered_messages.append(message)
         return rendered_messages
+    
+    @field_validator("max_steps")
+    def validate_max_steps(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("max_steps must be greater than 0")
+        return v
 
 def _output_instructions(output_model: Type[BaseModel]) -> str:
     """
@@ -352,3 +358,4 @@ def _output_instructions(output_model: Type[BaseModel]) -> str:
         Instructions for formatting the output as JSON.
     """
     return f"Provide your answer in JSON format, respecting this schema:\n{output_model.model_json_schema()}"
+    
