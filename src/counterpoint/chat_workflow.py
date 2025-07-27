@@ -35,7 +35,7 @@ StepGenerator = AsyncGenerator[ChatWorkflowStep, None]
 
 OutputType = TypeVar("OutputType", bound=BaseModel)
 
-class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputType]):
+class ChatWorkflow(AsyncWorkflowStep[dict | None, Chat[OutputType]], Generic[OutputType]):
     """
     A chat workflow, compatible with AsyncWorkflowStep.
 
@@ -277,7 +277,7 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
                 return
 
     @logfire.instrument("chat_workflow.run")
-    async def run(self, inputs: dict | None = None) -> OutputType:
+    async def run(self, inputs: dict | None = None) -> Chat[OutputType]:
         """
         Run the chat workflow with the given input.
 
@@ -302,20 +302,20 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
         raise RuntimeError("Chat workflow step failed.")
     
     @logfire.instrument("chat_workflow.stream_many")
-    async def stream_many(self, n: int, input: dict | None = None) -> AsyncGenerator[OutputType, None]:
+    async def stream_many(self, n: int, input: dict | None = None) -> AsyncGenerator[Chat[OutputType], None]:
         async for result in super().run_stream(async_gen_many(n, input)):
             yield result
     
     @logfire.instrument("chat_workflow.run_many")
-    async def run_many(self, n: int, input: dict | None = None) -> List[OutputType]:
+    async def run_many(self, n: int, input: dict | None = None) -> List[Chat[OutputType]]:
         return await super().run_many(n, input)
     
     @logfire.instrument("chat_workflow.run_batch")
-    async def run_batch(self, inputs: list[dict]) -> List[OutputType]:
+    async def run_batch(self, inputs: list[dict]) -> List[Chat[OutputType]]:
         return await super().run_batch(inputs)
     
     @logfire.instrument("chat_workflow.stream_batch")
-    async def stream_batch(self, inputs: list[dict]) -> AsyncGenerator[OutputType, None]:
+    async def stream_batch(self, inputs: list[dict]) -> AsyncGenerator[Chat[OutputType], None]:
         async for result in super().stream_batch(inputs):
             yield result
 
