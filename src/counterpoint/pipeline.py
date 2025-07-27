@@ -1,5 +1,6 @@
 import asyncio
 import json
+import warnings
 from typing import (
     Any,
     AsyncGenerator,
@@ -46,6 +47,10 @@ OutputType = TypeVar("OutputType", bound=BaseModel)
 class Pipeline(BaseModel, Generic[OutputType]):
     """A pipeline for handling chat completions.
 
+    .. deprecated:: 1.0.0
+        The Pipeline class is deprecated and will be removed in a future version.
+        Consider using alternative approaches for chat completion workflows.
+
     Attributes
     ----------
     messages : List[Message]
@@ -59,6 +64,15 @@ class Pipeline(BaseModel, Generic[OutputType]):
     prompt_manager : PromptsManager
         The prompt manager to use for rendering templates.
     """
+
+    def __init__(self, **data):
+        warnings.warn(
+            "The Pipeline class is deprecated and will be removed in a future version. "
+            "Consider using ChatWorkflow instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(**data)
 
     generator: "BaseGenerator"
 
