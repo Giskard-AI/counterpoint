@@ -22,6 +22,7 @@ async def test_single_run(generator):
 
 async def test_run_many(generator):
     """Test that the pipeline runs correctly."""
+
     pipeline = cp.Pipeline(generator=generator)
 
     chats = await pipeline.chat("Hello!", role="user").run_many(n=3)
@@ -31,13 +32,12 @@ async def test_run_many(generator):
 
 async def test_run_batch(generator):
     """Test that the pipeline runs correctly."""
+
     pipeline = cp.Pipeline(generator=generator)
 
     chats = await pipeline.chat("Hello {{ n }}!", role="user").run_batch(
         inputs=[{"n": i} for i in range(3)]
     )
-
-    # 
 
     assert chats[0].context.inputs["n"] == 0
     assert chats[1].context.inputs["n"] == 1
@@ -84,42 +84,52 @@ async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
             prompts_path=Path(__file__).parent / "data" / "prompts"
         ),
     )
+
     chat = (
         await pipeline.template("multi_message.j2")
         .chat("{{ score }}!", role="assistant")
         .chat("Well done {{ name }}!", role="user")
-        .run({
-            'name': "TestBot",
-            'theory': "Normandy is actually the center of the universe.",
-            'score': 100
-        })
+        .with_inputs(
+            name="TestBot",
+            theory="Normandy is actually the center of the universe.",
+            score=100,
+        )
+        .run()
     )
 
     assert len(chat.messages) == 5
+
     assert chat.messages[0].role == "system"
     assert (
         "You are an impartial evaluator of scientific theories."
         in chat.messages[0].content
     )
+
     assert chat.messages[1].role == "user"
     assert (
         "Normandy is actually the center of the universe." in chat.messages[1].content
     )
+
     assert chat.messages[2].role == "assistant"
     assert "100" in chat.messages[2].content
+
     assert chat.messages[3].role == "user"
     assert "Well done TestBot!" in chat.messages[3].content
+
     assert chat.messages[4].role == "assistant"
 
 
 async def test_output_format(generator):
     pipeline = cp.Pipeline(generator=generator)
+
     class SimpleOutput(BaseModel):
         mood: str
         greeting: str
+
     chat = (
         await pipeline.chat("Hello! Answer in JSON.", role="user")
         .with_output(SimpleOutput)
-        .run({})
+        .run()
     )
-    assert isinstance(chat, SimpleOutput)
+
+    assert isinstance(chat.output, SimpleOutput)

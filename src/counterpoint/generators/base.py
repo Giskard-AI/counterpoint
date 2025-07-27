@@ -28,6 +28,7 @@ class GenerationParams(BaseModel):
     """
 
     temperature: float = Field(default=1.0)
+    max_tokens: int | None = Field(default=None)
     response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
 
