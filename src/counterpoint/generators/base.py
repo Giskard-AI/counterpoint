@@ -9,6 +9,7 @@ from ..tools import Tool
 
 if TYPE_CHECKING:
     from ..pipeline import Pipeline
+    from ..chat_workflow import ChatWorkflow
 
 
 class Response(BaseModel):
@@ -88,6 +89,9 @@ class BaseGenerator(BaseModel, ABC):
     def chat(self, message: str, role: Role = "user") -> "Pipeline":
         """Create a new chat pipeline with the given message.
 
+        .. deprecated:: 1.0.0
+            Use build_chat_workflow() instead for new code.
+
         Parameters
         ----------
         message : str
@@ -105,6 +109,9 @@ class BaseGenerator(BaseModel, ABC):
     def template(self, template_name: str) -> "Pipeline":
         """Create a new chat pipeline with the given message.
 
+        .. deprecated:: 1.0.0
+            Use build_chat_workflow() instead for new code.
+
         Parameters
         ----------
         template_path : str
@@ -118,6 +125,40 @@ class BaseGenerator(BaseModel, ABC):
         from ..pipeline import Pipeline
 
         return Pipeline(generator=self).template(template_name)
+
+    def build_chat_workflow(self, message: str, role: Role = "user") -> "ChatWorkflow":
+        """Create a new chat workflow with the given message.
+
+        Parameters
+        ----------
+        message : str
+            The initial message to start the chat with.
+
+        Returns
+        -------
+        ChatWorkflow
+            A ChatWorkflow object that can be used to run the completion.
+        """
+        from ..chat_workflow import ChatWorkflow
+
+        return ChatWorkflow(generator=self).chat(message, role)
+
+    def build_workflow_template(self, template_name: str) -> "ChatWorkflow":
+        """Create a new chat workflow with the given template.
+
+        Parameters
+        ----------
+        template_name : str
+            The name of the template file.
+
+        Returns
+        -------
+        ChatWorkflow
+            A ChatWorkflow object that can be used to run the completion.
+        """
+        from ..chat_workflow import ChatWorkflow
+
+        return ChatWorkflow(generator=self).template(template_name)
 
     def with_params(self, **kwargs: Any) -> "BaseGenerator":
         """Create a new generator with the given parameters.

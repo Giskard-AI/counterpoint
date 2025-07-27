@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from litellm import ModelResponse
+from counterpoint.chat_workflow import ChatWorkflow
 
 from counterpoint.chat import Chat, Message
 from counterpoint.generators.base import Response
@@ -72,6 +73,28 @@ async def test_generator_chat(generator: LiteLLMGenerator):
     assert isinstance(chat, Chat)
 
     chats = await pipeline.run_many(3)
+
+    assert len(chats) == 3  # type: ignore
+    assert isinstance(chats[0], Chat)
+    assert isinstance(chats[1], Chat)
+    assert isinstance(chats[2], Chat)
+
+
+async def test_generator_build_chat_workflow(generator: LiteLLMGenerator):
+    test_message = "Hello, world!"
+    chat_workflow = generator.build_chat_workflow(test_message)
+
+    assert isinstance(chat_workflow, ChatWorkflow)
+    assert len(chat_workflow.messages) == 1
+    assert isinstance(chat_workflow.messages[0], MessageTemplate)
+    assert chat_workflow.messages[0].role == "user"
+    assert chat_workflow.messages[0].content_template == test_message
+
+    chat = await chat_workflow.run()
+
+    assert isinstance(chat, Chat)
+
+    chats = await chat_workflow.run_many(3)
 
     assert len(chats) == 3
     assert isinstance(chats[0], Chat)

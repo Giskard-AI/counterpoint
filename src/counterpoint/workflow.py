@@ -99,7 +99,12 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
             ) -> AsyncGenerator[Union[NewOutput, Exception], None]:
                 async for item in parent.run_stream(inputs):
                     if item is not None:
-                        yield item
+                        try:
+                            result = await next_step.run(item)
+                            yield result
+                        except Exception:
+                            if self.error_mode == "raise":
+                                raise
 
             def describe(self) -> str:
                 return f"{parent.describe()} | {next_step.describe()}"
@@ -128,7 +133,11 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
             ) -> AsyncGenerator[Union[NewOutput, Exception], None]:
                 async for result in parent.run_stream(inputs):
                     if result is not None:
-                        yield fn(result)
+                        try:
+                            yield fn(result)
+                        except Exception:
+                            if self.error_mode == "raise":
+                                raise
 
             def describe(self) -> str:
                 return f"{parent.describe()} |> map({fn.__name__})"
@@ -150,6 +159,8 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                         raise TypeError(f"Expected list, got {type(outputs)}")
                     return await asyncio.gather(*(next_step.run(x) for x in outputs))
                 except Exception:
+                    if self.error_mode == "raise":
+                        raise
                     return []
 
             async def run_stream(

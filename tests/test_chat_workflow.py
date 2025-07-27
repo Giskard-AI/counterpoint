@@ -8,11 +8,11 @@ from counterpoint.generators.litellm_generator import LiteLLMGenerator
 from counterpoint.templates.prompts_manager import PromptsManager
 
 
-async def test_single_run(generator):
-    pipeline = cp.ChatWorkflow(generator=generator)
+async def test_chat_workflow_single_run(generator):
+    chat_workflow = cp.ChatWorkflow(generator=generator)
 
     chat = await (
-        pipeline.chat("Your name is TestBot.", role="system")
+        chat_workflow.chat("Your name is TestBot.", role="system")
         .chat("What is your name? Answer in one word.", role="user")
         .run()
     )
@@ -20,24 +20,22 @@ async def test_single_run(generator):
     assert "testbot" in chat.last.content.lower()
 
 
-async def test_run_many(generator):
-    """Test that the pipeline runs correctly."""
-    pipeline = cp.ChatWorkflow(generator=generator)
+async def test_chat_workflow_run_many(generator):
+    """Test that the chat workflow runs correctly."""
+    chat_workflow = cp.ChatWorkflow(generator=generator)
 
-    chats = await pipeline.chat("Hello!", role="user").run_many(n=3)
+    chats = await chat_workflow.chat("Hello!", role="user").run_many(n=3)
 
     assert len(chats) == 3
 
 
-async def test_run_batch(generator):
-    """Test that the pipeline runs correctly."""
-    pipeline = cp.ChatWorkflow(generator=generator)
+async def test_chat_workflow_run_batch(generator):
+    """Test that the chat workflow runs correctly."""
+    chat_workflow = cp.ChatWorkflow(generator=generator)
 
-    chats = await pipeline.chat("Hello {{ n }}!", role="user").run_batch(
+    chats = await chat_workflow.chat("Hello {{ n }}!", role="user").run_batch(
         inputs=[{"n": i} for i in range(3)]
     )
-
-    # 
 
     assert chats[0].context.inputs["n"] == 0
     assert chats[1].context.inputs["n"] == 1
@@ -50,22 +48,22 @@ async def test_run_batch(generator):
     assert len(chats) == 3
 
 
-async def test_stream_many(generator):
-    pipeline = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
+async def test_chat_workflow_stream_many(generator):
+    chat_workflow = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
 
     chats = []
-    async for chat in pipeline.stream_many(3):
+    async for chat in chat_workflow.stream_many(3):
         assert isinstance(chat, Chat)
         chats.append(chat)
 
     assert len(chats) == 3
 
 
-async def test_stream_batch(generator):
-    pipeline = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
+async def test_chat_workflow_stream_batch(generator):
+    chat_workflow = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
 
     chats = []
-    async for chat in pipeline.stream_batch(
+    async for chat in chat_workflow.stream_batch(
         inputs=[{"message": "Hello!"}, {"message": "Hello!!"}]
     ):
         assert isinstance(chat, Chat)
@@ -77,15 +75,15 @@ async def test_stream_batch(generator):
     assert len(chats) == 2
 
 
-async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
-    pipeline = cp.ChatWorkflow(
+async def test_chat_workflow_with_mixed_templates(generator: LiteLLMGenerator):
+    chat_workflow = cp.ChatWorkflow(
         generator=generator,
         prompt_manager=PromptsManager(
             prompts_path=Path(__file__).parent / "data" / "prompts"
         ),
     )
     chat = (
-        await pipeline.template("multi_message.j2")
+        await chat_workflow.template("multi_message.j2")
         .chat("{{ score }}!", role="assistant")
         .chat("Well done {{ name }}!", role="user")
         .run({
@@ -113,13 +111,13 @@ async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
 
 
 async def test_output_format(generator):
-    pipeline = cp.ChatWorkflow(generator=generator)
+    chat_workflow = cp.ChatWorkflow(generator=generator)
     class SimpleOutput(BaseModel):
         mood: str
         greeting: str
     chat = (
-        await pipeline.chat("Hello! Answer in JSON.", role="user")
+        await chat_workflow.chat("Hello! Answer in JSON.", role="user")
         .with_output(SimpleOutput)
         .run({})
     )
-    assert isinstance(chat, SimpleOutput)
+    assert isinstance(chat.output, SimpleOutput)
