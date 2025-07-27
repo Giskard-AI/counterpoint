@@ -53,7 +53,7 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
         The prompt manager to use for rendering templates.
     context : RunContext, optional
         The context for the chat workflow.
-    error_mode : OnErrorAction, optional
+    error_mode : ErrorMode, optional
         Error handling behavior ("raise" or "pass").
     """
 
