@@ -270,7 +270,7 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
 
         Parameters
         ----------
-        input : dict
+        inputs : dict
             The input variables for the chat workflow.
 
         Returns

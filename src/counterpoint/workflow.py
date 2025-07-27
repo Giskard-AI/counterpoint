@@ -171,8 +171,9 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                         results = await self.run(input_item)
                         if results:
                             yield results
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        if self.error_mode == "raise":
+                            raise e
 
             def describe(self) -> str:
                 return f"{parent.describe()} ⨂ {next_step.describe()}"
