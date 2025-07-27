@@ -6,9 +6,7 @@ from typing import (
     TypeVar,
     Generic,
     List,
-    Union,
     Literal,
-    Type,
 )
 from pydantic import BaseModel
 
@@ -42,7 +40,7 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
     async def _run_one(self, input: InputType) -> OutputType:
         try:
             return await self.run(input)
-        except Exception as e:
+        except Exception:
             if self.error_mode == "raise":
                 raise
             return NO_OUTPUT
