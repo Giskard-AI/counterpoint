@@ -171,10 +171,23 @@ class ChatWorkflow(AsyncWorkflowStep[dict | None, OutputType], Generic[OutputTyp
         self.context = context
         return self
     
-    def with_max_steps(self, max_steps: int) -> "ChatWorkflow":
+    def with_max_steps(self, max_steps: int | None = None) -> "ChatWorkflow":
         """
         Set the maximum number of steps for the chat workflow.
+
+        Parameters
+        ----------
+        max_steps : int
+            The maximum number of steps to run.
+
+        Returns
+        -------
+        ChatWorkflow
+            The chat workflow instance for method chaining.
         """
+        if max_steps is not None and max_steps <= 0:
+            raise ValueError("max_steps must be greater than 0")
+        
         self.max_steps = max_steps
         return self
     
