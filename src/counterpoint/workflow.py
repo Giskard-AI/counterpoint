@@ -130,7 +130,10 @@ class AsyncWorkflowStep(BaseModel, Generic[InputType, OutputType]):
                 outputs = await parent.run(input)
                 if not isinstance(outputs, list):
                     raise TypeError(f"Expected list, got {type(outputs)}")
-                return await asyncio.gather(*(next_step.run(x) for x in outputs))
+                
+                # Use _run_one to respect error_mode
+                results = await asyncio.gather(*(next_step._run_one(x) for x in outputs))
+                return [result for result in results if result is not NO_OUTPUT]
 
             def describe(self) -> str:
                 return f"{parent.describe()} ⨂ {next_step.describe()}"

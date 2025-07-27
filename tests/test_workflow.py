@@ -1,196 +1,415 @@
 import pytest
 import asyncio
+from typing import List
 from pydantic import BaseModel
-from src.counterpoint.workflow import AsyncWorkflowStep
 
-class InputModel(BaseModel):
+from counterpoint.workflow import AsyncWorkflowStep, NO_OUTPUT, NoOutput, async_gen_batch
+
+
+class SimpleInput(BaseModel):
     value: int
 
-class OutputModel(BaseModel):
-    value: int
 
-class DoubleStep(AsyncWorkflowStep[InputModel, OutputModel]):
-    name: str = "double"
-    async def run(self, input: InputModel) -> OutputModel:
-        return OutputModel(value=input.value * 2)
-    def describe(self) -> str:
-        return f"{self.name}: DoubleStep"
+class SimpleOutput(BaseModel):
+    result: int
 
-class ToListStep(AsyncWorkflowStep[InputModel, list[OutputModel]]):
-    name: str = "tolist"
-    async def run(self, input: InputModel) -> list[OutputModel]:
-        return [OutputModel(value=input.value), OutputModel(value=input.value + 1)]
-    def describe(self) -> str:
-        return f"{self.name}: ToListStep"
 
-class AddOneStep(AsyncWorkflowStep[OutputModel, OutputModel]):
-    name: str = "addone"
-    async def run(self, input: OutputModel) -> OutputModel:
-        return OutputModel(value=input.value + 1)
-    def describe(self) -> str:
-        return f"{self.name}: AddOneStep"
+class FailingStep(AsyncWorkflowStep[SimpleInput, SimpleOutput]):
+    async def run(self, input: SimpleInput) -> SimpleOutput:
+        if input.value < 0:
+            raise ValueError("Negative value not allowed")
+        return SimpleOutput(result=input.value * 2)
 
-class DummyStep(AsyncWorkflowStep[InputModel, OutputModel]):
-    name: str = "dummy"
-    pass
 
-def test_step_run_notimplemented():
-    """Test that AsyncWorkflowStep.run raises NotImplementedError by default.
-    """
-    step = DummyStep()
-    with pytest.raises(NotImplementedError):
-        asyncio.run(step.run(InputModel(value=1)))
+class MultiplyStep(AsyncWorkflowStep[SimpleInput, SimpleOutput]):
+    multiplier: int = 2
 
-async def test_step_map():
-    """Test map method applies a function to the async result.
-    """
-    step = DoubleStep()
-    mapped = step.map(lambda out: OutputModel(value=out.value + 10))
-    result = await mapped.run(InputModel(value=2))
-    assert result.value == 14
+    async def run(self, input: SimpleInput) -> SimpleOutput:
+        return SimpleOutput(result=input.value * self.multiplier)
 
-async def test_step_flatmap():
-    """Test flat_map applies next_step to each item in a list result.
-    """
-    step = ToListStep()
-    next_step = AddOneStep()
-    flatmapped = step.flat_map(next_step)
-    results = await flatmapped.run(InputModel(value=3))
-    assert [r.value for r in results] == [4, 5]
 
-async def test_step_flatmap_typeerror():
-    """Test flat_map raises TypeError if parent result is not a list.
-    """
-    class NotAListStep(AsyncWorkflowStep[InputModel, OutputModel]):
-        name: str = "notalist"
-        async def run(self, input: InputModel) -> OutputModel:
-            return OutputModel(value=input.value)
-        def describe(self) -> str:
-            return f"{self.name}: NotAListStep"
-    step = NotAListStep()
-    next_step = AddOneStep()
-    flatmapped = step.flat_map(next_step)
-    with pytest.raises(TypeError):
-        await flatmapped.run(InputModel(value=1))
+class AddStep(AsyncWorkflowStep[SimpleOutput, SimpleOutput]):
+    add_value: int = 10
 
-async def test_step_or_operator():
-    """Test __or__ operator chains steps and runs in order.
-    """
-    step1 = DoubleStep()
-    step2 = AddOneStep()
-    composed = step1 | step2
-    result = await composed.run(InputModel(value=5))
-    assert result.value == 11
+    async def run(self, input: SimpleOutput) -> SimpleOutput:
+        return SimpleOutput(result=input.result + self.add_value)
 
-async def test_describe_methods():
-    """Test describe methods for all step types, including map and flat_map.
-    """
-    step = DoubleStep()
-    mapped = step.map(lambda out: OutputModel(value=out.value + 1))
-    tolist = ToListStep()
-    addone = AddOneStep()
-    flatmapped = tolist.flat_map(addone)
-    composed = step | addone
-    assert "double" in step.describe()
-    assert "DoubleStep" in step.describe()
-    assert "double: DoubleStep |> map(<lambda>)" in mapped.describe()
-    assert "tolist" in tolist.describe()
-    assert "addone" in addone.describe()
-    assert "⨂" in flatmapped.describe()
-    assert "double" in composed.describe() and "addone" in composed.describe() 
 
-async def test_chain_multiple_steps():
-    """Test chaining more than two steps using | operator."""
-    step1 = DoubleStep()
-    step2 = AddOneStep()
-    step3 = AddOneStep()
-    composed = step1 | step2 | step3
-    result = await composed.run(InputModel(value=2))
-    # ((2 * 2) + 1) + 1 = 6
-    assert result.value == 6
+class ListProducerStep(AsyncWorkflowStep[SimpleInput, List[SimpleOutput]]):
+    async def run(self, input: SimpleInput) -> List[SimpleOutput]:
+        return [SimpleOutput(result=input.value + i) for i in range(3)]
 
-async def test_chain_with_map():
-    """Test chaining a mapped step with | operator."""
-    step = DoubleStep()
-    mapped = step.map(lambda out: OutputModel(value=out.value + 5))
-    addone = AddOneStep()
-    composed = mapped | addone
-    result = await composed.run(InputModel(value=3))
-    # (3 * 2) + 5 = 11, then +1 = 12
-    assert result.value == 12
 
-async def test_chain_with_flatmap():
-    """Test chaining a flat_mapped step with | operator."""
-    tolist = ToListStep()
-    addone = AddOneStep()
-    flatmapped = tolist.flat_map(addone)
-    # flatmapped returns a list, so chain another step that expects a list
-    class SumStep(AsyncWorkflowStep[list[OutputModel], OutputModel]):
-        name: str = "sum"
-        async def run(self, input: list[OutputModel]) -> OutputModel:
-            return OutputModel(value=sum(x.value for x in input))
-        def describe(self) -> str:
-            return f"{self.name}: SumStep"
-    sumstep = SumStep()
-    composed = flatmapped | sumstep
-    result = await composed.run(InputModel(value=4))
-    # ToListStep: [4,5], AddOneStep: [5,6], SumStep: 11
-    assert result.value == 11
+class OutputFailingStep(AsyncWorkflowStep[SimpleOutput, SimpleOutput]):
+    async def run(self, input: SimpleOutput) -> SimpleOutput:
+        if input.result < 0:
+            raise ValueError("Negative result not allowed")
+        return SimpleOutput(result=input.result * 2)
 
-async def test_chain_mixed_composed_and_step():
-    """Test chaining a composed workflow with a single step."""
-    step1 = DoubleStep()
-    step2 = AddOneStep()
-    composed = step1 | step2
-    # Now chain another AddOneStep
-    final = composed | AddOneStep()
-    result = await final.run(InputModel(value=2))
-    # ((2*2)+1)+1 = 6
-    assert result.value == 6 
 
-@pytest.mark.asyncio
-async def test_run_stream_single_step():
-    """Test run_stream for a single step."""
-    step = DoubleStep()
-    inputs = [InputModel(value=i) for i in range(3)]
-    async def input_gen():
-        for x in inputs:
-            yield x
-    results = [r async for r in step.run_stream(input_gen())]
-    assert [r.value for r in results] == [0, 2, 4]
+class NegativeListProducerStep(AsyncWorkflowStep[SimpleInput, List[SimpleOutput]]):
+    async def run(self, input: SimpleInput) -> List[SimpleOutput]:
+        return [SimpleOutput(result=input.value - i) for i in range(3)]
 
-@pytest.mark.asyncio
-async def test_run_stream_mapped_step():
-    """Test run_stream for a mapped step."""
-    step = DoubleStep().map(lambda out: OutputModel(value=out.value + 5))
-    inputs = [InputModel(value=i) for i in range(2)]
-    async def input_gen():
-        for x in inputs:
-            yield x
-    results = [r async for r in step.run_stream(input_gen())]
-    assert [r.value for r in results] == [5, 7]
 
-@pytest.mark.asyncio
-async def test_run_stream_flatmapped_step():
-    """Test run_stream for a flat_mapped step."""
-    step = ToListStep().flat_map(AddOneStep())
-    inputs = [InputModel(value=1), InputModel(value=2)]
-    async def input_gen():
-        for x in inputs:
-            yield x
-    results = [r async for r in step.run_stream(input_gen())]
-    # ToListStep: [1,2] -> AddOneStep: [2,3], [2,3] -> [3,4]
-    assert results == [[OutputModel(value=2), OutputModel(value=3)], [OutputModel(value=3), OutputModel(value=4)]]
-    assert [[x.value for x in group] for group in results] == [[2, 3], [3, 4]]
+# Test basic functionality
+class TestBasicWorkflow:
+    
+    async def test_single_step_success(self):
+        step = MultiplyStep(multiplier=3)
+        input_data = SimpleInput(value=5)
+        result = await step.run(input_data)
+        assert result.result == 15
 
-@pytest.mark.asyncio
-async def test_run_stream_composed_step():
-    """Test run_stream for a composed step using | operator."""
-    step = DoubleStep() | AddOneStep()
-    inputs = [InputModel(value=2), InputModel(value=3)]
-    async def input_gen():
-        for x in inputs:
-            yield x
-    results = [r async for r in step.run_stream(input_gen())]
-    # (2*2)+1=5, (3*2)+1=7
-    assert [r.value for r in results] == [5, 7] 
+    async def test_single_step_error_raise_mode(self):
+        step = FailingStep(error_mode="raise")
+        input_data = SimpleInput(value=-5)
+        
+        with pytest.raises(ValueError, match="Negative value not allowed"):
+            await step.run(input_data)
+
+    async def test_run_one_error_pass_mode(self):
+        step = FailingStep(error_mode="pass")
+        input_data = SimpleInput(value=-5)
+        result = await step._run_one(input_data)
+        assert result is NO_OUTPUT
+
+
+# Test streaming functionality
+class TestStreamingWorkflow:
+    
+    async def test_run_stream_success(self):
+        step = MultiplyStep(multiplier=2)
+        inputs = [SimpleInput(value=i) for i in range(3)]
+        
+        results = []
+        async for result in step.run_stream(async_gen_batch(inputs)):
+            results.append(result)
+        
+        assert len(results) == 3
+        assert results[0].result == 0
+        assert results[1].result == 2
+        assert results[2].result == 4
+
+    async def test_run_stream_with_errors_pass_mode(self):
+        step = FailingStep(error_mode="pass")
+        inputs = [SimpleInput(value=i) for i in [-1, 1, -2, 2]]
+        
+        results = []
+        async for result in step.run_stream(async_gen_batch(inputs)):
+            results.append(result)
+        
+        # Only positive values should succeed
+        assert len(results) == 2
+        assert results[0].result == 2  # 1 * 2
+        assert results[1].result == 4  # 2 * 2
+
+    async def test_run_stream_with_errors_raise_mode(self):
+        step = FailingStep(error_mode="raise")
+        inputs = [SimpleInput(value=i) for i in [1, -1, 2]]
+        
+        with pytest.raises(ValueError, match="Negative value not allowed"):
+            async for result in step.run_stream(async_gen_batch(inputs)):
+                pass
+
+
+# Test batch functionality
+class TestBatchWorkflow:
+    
+    async def test_run_batch_success(self):
+        step = MultiplyStep(multiplier=3)
+        inputs = [SimpleInput(value=i) for i in range(4)]
+        
+        results = await step.run_batch(inputs)
+        
+        assert len(results) == 4
+        assert results[0].result == 0
+        assert results[1].result == 3
+        assert results[2].result == 6
+        assert results[3].result == 9
+
+    async def test_run_batch_with_errors_pass_mode(self):
+        step = FailingStep(error_mode="pass")
+        inputs = [SimpleInput(value=i) for i in [-2, 1, -1, 3]]
+        
+        results = await step.run_batch(inputs)
+        
+        # Only positive values should succeed
+        assert len(results) == 2
+        assert results[0].result == 2  # 1 * 2
+        assert results[1].result == 6  # 3 * 2
+
+    async def test_run_batch_with_errors_raise_mode(self):
+        step = FailingStep(error_mode="raise")
+        inputs = [SimpleInput(value=i) for i in [1, -1, 2]]
+        
+        with pytest.raises(ValueError, match="Negative value not allowed"):
+            await step.run_batch(inputs)
+
+    async def test_run_many(self):
+        step = MultiplyStep(multiplier=4)
+        input_data = SimpleInput(value=5)
+        
+        results = await step.run_many(3, input_data)
+        
+        assert len(results) == 3
+        assert all(result.result == 20 for result in results)
+
+    async def test_stream_many(self):
+        step = MultiplyStep(multiplier=2)
+        input_data = SimpleInput(value=7)
+        
+        results = []
+        async for result in step.stream_many(2, input_data):
+            results.append(result)
+        
+        assert len(results) == 2
+        assert all(result.result == 14 for result in results)
+
+    async def test_stream_batch(self):
+        step = MultiplyStep(multiplier=2)
+        inputs = [SimpleInput(value=i) for i in range(3)]
+        
+        results = []
+        async for result in step.stream_batch(inputs):
+            results.append(result)
+        
+        assert len(results) == 3
+        assert results[0].result == 0
+        assert results[1].result == 2
+        assert results[2].result == 4
+
+
+# Test composition functionality
+class TestWorkflowComposition:
+    
+    async def test_pipe_operator_success(self):
+        step1 = MultiplyStep(multiplier=2)
+        step2 = AddStep(add_value=10)
+        composed = step1 | step2
+        
+        input_data = SimpleInput(value=5)
+        result = await composed.run(input_data)
+        
+        assert result.result == 20  # (5 * 2) + 10
+
+    async def test_pipe_operator_with_errors_raise_mode(self):
+        step1 = FailingStep(error_mode="raise")
+        step2 = AddStep(add_value=10)
+        composed = step1 | step2
+        
+        input_data = SimpleInput(value=-5)
+        
+        with pytest.raises(ValueError, match="Negative value not allowed"):
+            await composed.run(input_data)
+
+    async def test_pipe_operator_with_errors_pass_mode(self):
+        step1 = FailingStep(error_mode="pass")
+        step2 = AddStep(add_value=10)
+        composed = step1 | step2
+        
+        inputs = [SimpleInput(value=i) for i in [-1, 2, -3, 4]]
+        results = await composed.run_batch(inputs)
+        
+        # Only positive values should make it through the pipeline
+        assert len(results) == 2
+        assert results[0].result == 14  # (2 * 2) + 10
+        assert results[1].result == 18  # (4 * 2) + 10
+
+    async def test_multiple_pipe_operators(self):
+        step1 = MultiplyStep(multiplier=2)
+        step2 = AddStep(add_value=5)
+        step3 = AddStep(add_value=3)  # Use AddStep which takes SimpleOutput
+        composed = step1 | step2 | step3
+        
+        input_data = SimpleInput(value=4)
+        result = await composed.run(input_data)
+        
+        assert result.result == 16  # ((4 * 2) + 5) + 3
+
+    async def test_composed_step_describe(self):
+        step1 = MultiplyStep(multiplier=2, name="multiply")
+        step2 = AddStep(add_value=10, name="add")
+        composed = step1 | step2
+        
+        description = composed.describe()
+        assert description == "multiply | add"
+
+
+# Test map functionality
+class TestWorkflowMap:
+    
+    async def test_map_success(self):
+        step = MultiplyStep(multiplier=2)
+        mapped = step.map(lambda x: SimpleOutput(result=x.result + 100))
+        
+        input_data = SimpleInput(value=5)
+        result = await mapped.run(input_data)
+        
+        assert result.result == 110  # (5 * 2) + 100
+
+    async def test_map_with_errors_pass_mode(self):
+        step = FailingStep(error_mode="pass")
+        mapped = step.map(lambda x: SimpleOutput(result=x.result + 100))
+        
+        inputs = [SimpleInput(value=i) for i in [-1, 2, -3]]
+        results = await mapped.run_batch(inputs)
+        
+        assert len(results) == 1
+        assert results[0].result == 104  # (2 * 2) + 100
+
+    async def test_map_function_error_raise_mode(self):
+        step = MultiplyStep(multiplier=2, error_mode="raise")
+        
+        def failing_map(x):
+            if x.result > 5:
+                raise ValueError("Result too large")
+            return SimpleOutput(result=x.result + 100)
+        
+        mapped = step.map(failing_map)
+        
+        input_data = SimpleInput(value=5)  # Will produce result=10, which > 5
+        
+        with pytest.raises(ValueError, match="Result too large"):
+            await mapped.run(input_data)
+
+    async def test_map_function_error_pass_mode(self):
+        step = MultiplyStep(multiplier=2, error_mode="pass")
+        
+        def failing_map(x):
+            if x.result > 5:
+                raise ValueError("Result too large")
+            return SimpleOutput(result=x.result + 100)
+        
+        mapped = step.map(failing_map)
+        
+        inputs = [SimpleInput(value=i) for i in [1, 5, 2]]  # 5*2=10 will fail
+        results = await mapped.run_batch(inputs)
+        
+        assert len(results) == 2
+        assert results[0].result == 102  # (1 * 2) + 100
+        assert results[1].result == 104  # (2 * 2) + 100
+
+    async def test_mapped_step_describe(self):
+        step = MultiplyStep(multiplier=2, name="multiply")
+        mapped = step.map(lambda x: x)
+        
+        description = mapped.describe()
+        assert description == "multiply |> map(<lambda>)"
+
+
+# Test flat_map functionality
+class TestWorkflowFlatMap:
+    
+    async def test_flat_map_success(self):
+        list_step = ListProducerStep()
+        add_step = AddStep(add_value=5)  # Use AddStep which takes SimpleOutput
+        flat_mapped = list_step.flat_map(add_step)
+        
+        input_data = SimpleInput(value=10)
+        results = await flat_mapped.run(input_data)
+        
+        assert len(results) == 3
+        assert results[0].result == 15  # (10 + 0) + 5
+        assert results[1].result == 16  # (10 + 1) + 5
+        assert results[2].result == 17  # (10 + 2) + 5
+
+    async def test_flat_map_type_error_raise_mode(self):
+        # Using a step that doesn't return a list
+        multiply_step = MultiplyStep(multiplier=2, error_mode="raise")
+        add_step = AddStep(add_value=5)
+        
+        # This should fail because MultiplyStep returns SimpleOutput, not List[SimpleOutput]
+        flat_mapped = multiply_step.flat_map(add_step)
+        
+        input_data = SimpleInput(value=5)
+        
+        with pytest.raises(TypeError, match="Expected list"):
+            await flat_mapped.run(input_data)
+
+    async def test_flat_map_with_errors_pass_mode(self):
+        list_step = NegativeListProducerStep(error_mode="pass")
+        failing_step = OutputFailingStep(error_mode="pass")  # Set error_mode to pass
+        flat_mapped = list_step.flat_map(failing_step)
+        
+        # List step will produce [1, 0, -1], OutputFailingStep will fail on negative values
+        input_data = SimpleInput(value=1)
+        results = await flat_mapped.run(input_data)
+        
+        # Only positive values should succeed: [2, 0] (1*2, 0*2)
+        assert len(results) == 2
+        assert results[0].result == 2   # (1 - 0) * 2
+        assert results[1].result == 0   # (1 - 1) * 2
+
+    async def test_flat_mapped_step_describe(self):
+        list_step = ListProducerStep(name="list_producer")
+        multiply_step = MultiplyStep(multiplier=2, name="multiply")
+        flat_mapped = list_step.flat_map(multiply_step)
+        
+        description = flat_mapped.describe()
+        assert description == "list_producer ⨂ multiply"
+
+
+# Test error mode inheritance
+class TestErrorModeInheritance:
+    
+    async def test_composed_step_inherits_parent_error_mode(self):
+        step1 = FailingStep(error_mode="pass")
+        step2 = AddStep(add_value=10)
+        composed = step1 | step2
+        
+        assert composed.error_mode == "pass"
+
+    async def test_mapped_step_inherits_parent_error_mode(self):
+        step = FailingStep(error_mode="pass")
+        mapped = step.map(lambda x: x)
+        
+        assert mapped.error_mode == "pass"
+
+    async def test_flat_mapped_step_inherits_parent_error_mode(self):
+        step = ListProducerStep(error_mode="pass")
+        multiply_step = MultiplyStep(multiplier=2)
+        flat_mapped = step.flat_map(multiply_step)
+        
+        assert flat_mapped.error_mode == "pass"
+
+
+# Test edge cases
+class TestEdgeCases:
+    
+    async def test_empty_input_stream(self):
+        step = MultiplyStep(multiplier=2)
+        
+        results = []
+        async for result in step.run_stream(async_gen_batch([])):
+            results.append(result)
+        
+        assert len(results) == 0
+
+    async def test_empty_input_batch(self):
+        step = MultiplyStep(multiplier=2)
+        results = await step.run_batch([])
+        
+        assert len(results) == 0
+
+    async def test_run_many_zero_count(self):
+        step = MultiplyStep(multiplier=2)
+        input_data = SimpleInput(value=5)
+        
+        results = await step.run_many(0, input_data)
+        assert len(results) == 0
+
+    async def test_no_output_is_singleton(self):
+        step = FailingStep(error_mode="pass")
+        input_data = SimpleInput(value=-5)
+        
+        result1 = await step._run_one(input_data)
+        result2 = await step._run_one(input_data)
+        
+        assert result1 is NO_OUTPUT
+        assert result2 is NO_OUTPUT
+        assert result1 is result2
+
+    async def test_no_output_model_properties(self):
+        assert isinstance(NO_OUTPUT, NoOutput)
+        assert isinstance(NO_OUTPUT, BaseModel)
