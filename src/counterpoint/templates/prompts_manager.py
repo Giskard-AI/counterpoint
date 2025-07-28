@@ -1,6 +1,7 @@
 import warnings
 import importlib
 import threading
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -66,6 +67,9 @@ class PromptsManager(BaseModel):
         namespace : str
             The namespace to use for the source
         """
+        # Validate namespace format
+        self._validate_namespace(namespace)
+        
         with self._lock: # Locking is necessary to avoid race conditions
             if namespace in self.prompts_sources:
                 warnings.warn(f"Prompt source {namespace} already registered")
@@ -75,6 +79,28 @@ class PromptsManager(BaseModel):
     def set_prompts_path(self, path: str | Path):
         """Set a custom prompts path."""
         self.prompts_path = Path(path)
+
+    def _validate_namespace(self, namespace: str) -> None:
+        """
+        Validate namespace format.
+        
+        Parameters
+        ----------
+        namespace : str
+            The namespace to validate
+            
+        Raises
+        ------
+        ValueError
+            If the namespace format is invalid
+        """
+        if not namespace:
+            raise ValueError("Empty namespace not allowed")
+        
+        # Check for invalid characters - allow letters, numbers, dots, underscores, hyphens
+        # Be permissive about starting characters to allow module-like names
+        if not re.match(r'^[a-zA-Z0-9_][a-zA-Z0-9._-]*$', namespace):
+            raise ValueError("Invalid namespace format")
 
     def _resolve_package_namespace(self, namespace: str) -> Optional[Path]:
         """
@@ -139,6 +165,9 @@ class PromptsManager(BaseModel):
         """
         if "::" in template_name:
             namespace, template_name = template_name.split("::", 1)
+            
+            # Validate namespace format
+            self._validate_namespace(namespace)
             
             # First check if explicitly registered
             with self._lock: # Locking is necessary to avoid race conditions

@@ -124,6 +124,17 @@ class TestPromptsManager:
         with pytest.warns(UserWarning, match="Prompt source test already registered"):
             manager.register_prompts_source("/another/path", "test")
 
+    @pytest.mark.parametrize("namespace,expected_error", [
+        ("namespace with spaces", "Invalid namespace format"),
+        ("", "Empty namespace not allowed"),
+        ("namespace/with/slashes", "Invalid namespace format"),
+    ])
+    def test_register_prompts_source_invalid_namespace(self, namespace, expected_error):
+        manager = PromptsManager()
+        
+        with pytest.raises(ValueError, match=expected_error):
+            manager.register_prompts_source("/path/to/prompts", namespace)
+
     def test_set_prompts_path(self):
         manager = PromptsManager()
         manager.set_prompts_path("/custom/prompts")
@@ -308,26 +319,20 @@ class TestPromptsManager:
         assert len(errors) == 0
         assert len(write_results) == 5
 
+    @pytest.mark.parametrize("exception,expected_warning", [
+        (ImportError("No module named 'test_package'"), "Package test_package not found"),
+        (PermissionError("Permission denied"), "Error resolving package test_package: Permission denied"),
+        (FileNotFoundError("File not found"), "Error resolving package test_package: File not found"),
+        (RuntimeError("Runtime error"), "Error resolving package test_package: Runtime error"),
+    ])
     @patch('counterpoint.templates.prompts_manager.importlib.import_module')  
-    def test_warning_on_import_error(self, mock_import):
-        """Test that warnings are properly emitted on import errors."""
+    def test_warning_on_namespace_resolution_errors(self, mock_import, exception, expected_warning):
+        """Test that warnings are properly emitted on various errors during namespace resolution."""
         manager = PromptsManager()
         
-        mock_import.side_effect = ImportError("No module named 'test_package'")
+        mock_import.side_effect = exception
         
-        with pytest.warns(UserWarning, match="Package test_package not found"):
-            result = manager._resolve_package_namespace("test_package")
-            
-        assert result is None
-
-    @patch('counterpoint.templates.prompts_manager.importlib.import_module')  
-    def test_warning_on_general_error(self, mock_import):
-        """Test that warnings are properly emitted on general errors."""
-        manager = PromptsManager()
-        
-        mock_import.side_effect = PermissionError("Permission denied")
-        
-        with pytest.warns(UserWarning, match="Error resolving package test_package: Permission denied"):
+        with pytest.warns(UserWarning, match=expected_warning):
             result = manager._resolve_package_namespace("test_package")
             
         assert result is None
@@ -354,23 +359,49 @@ class TestPromptsManager:
             # Verify it used the explicit path, not auto-resolution
             mock_env.assert_called_once_with("/explicit/path")
 
-    async def test_malformed_namespace_syntax(self):
+    @pytest.mark.parametrize("template_name,expected_error", [
+        ("::template.j2", "Empty namespace not allowed"),
+        ("namespace with spaces::template.j2", "Invalid namespace format"),
+        ("namespace/with/slashes::template.j2", "Invalid namespace format"),
+    ])
+    async def test_malformed_namespace_syntax(self, template_name, expected_error):
         """Test handling of malformed namespace syntax."""
         manager = PromptsManager()
         
-        # Test multiple :: separators - this will split on first :: and treat rest as template name
-        # This is actually valid behavior, but let's test the error case instead
-        with pytest.raises(ValueError, match="not registered and package not found"):
-            await manager.render_template("nonexistent_namespace::template.j2")
+        with pytest.raises(ValueError, match=expected_error):
+            await manager.render_template(template_name)
 
-    def test_path_normalization_in_registration(self):
-        """Test that paths are properly normalized during registration."""
+    @pytest.mark.parametrize("namespace", [
+        "simple",
+        "package.module", 
+        "package_name",
+        "package-name",
+        "package123",
+        "123package",
+        "_private",
+        "a.b.c.d",
+        "namespace123"
+    ])
+    async def test_valid_namespace_formats(self, namespace):
+        """Test that valid namespace formats don't raise format errors."""
         manager = PromptsManager()
         
-        # Test with relative path
-        manager.register_prompts_source("./relative/path", "test")
-        assert manager.prompts_sources["test"] == Path("./relative/path")
+        with pytest.raises(ValueError) as exc_info:
+            await manager.render_template(f"{namespace}::template.j2")
         
-        # Test with path containing .. 
-        manager.register_prompts_source("/some/../normalized/path", "test2")
-        assert manager.prompts_sources["test2"] == Path("/some/../normalized/path")
+        # Should fail because namespace is not registered, not because of format
+        assert "Invalid namespace format" not in str(exc_info.value), f"Namespace {namespace} should be valid format"
+        assert "not registered and package not found" in str(exc_info.value)
+
+    @pytest.mark.parametrize("source_path,namespace,expected_path", [
+        ("./relative/path", "test", Path("./relative/path")),
+        ("/some/../normalized/path", "test2", Path("/some/../normalized/path")),
+        ("/absolute/path", "test3", Path("/absolute/path")),
+        ("relative/path", "test4", Path("relative/path")),
+    ])
+    def test_path_normalization_in_registration(self, source_path, namespace, expected_path):
+        """Test that paths are properly handled during registration."""
+        manager = PromptsManager()
+        
+        manager.register_prompts_source(source_path, namespace)
+        assert manager.prompts_sources[namespace] == expected_path
