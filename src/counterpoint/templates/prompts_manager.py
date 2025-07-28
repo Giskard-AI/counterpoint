@@ -138,7 +138,7 @@ class PromptsManager(BaseModel):
             List of parsed Message objects
         """
         if "::" in template_name:
-            namespace, template_name = template_name.split("::")
+            namespace, template_name = template_name.split("::", 1)
             
             # First check if explicitly registered
             with self._lock: # Locking is necessary to avoid race conditions
