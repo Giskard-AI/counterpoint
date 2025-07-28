@@ -86,7 +86,11 @@ chat = await (
 
 ### External templates
 
-For more complicated prompts you can define your template in a separate file. First tell `counterpoint` where to find the templates (you probably want to do this in your `__init__.py` file):
+For more complicated prompts you can define your template in a separate file. Counterpoint supports multiple ways to organize your templates:
+
+#### Basic template loading
+
+By default, templates are loaded from a `prompts` directory in your current working directory. You can customize this path:
 
 ```python
 cp.set_prompts_path("path/to/the/prompts")
@@ -105,6 +109,51 @@ chat = await (
     .run()
 )
 ```
+
+#### Namespace-based template organization
+
+For better organization, especially in larger projects, you can use namespaces to organize templates from different sources. This is particularly useful when working with multiple packages or when you want to separate templates by domain.
+
+**Explicit registration:**
+```python
+# Register a prompts source with a namespace
+cp.get_prompts_manager().register_prompts_source("/path/to/my/templates", "my_app")
+
+# Use the namespace when loading templates
+chat = await (
+    generator.template("my_app::hello_template.j2")
+    .with_inputs(name_of_the_bot="Test Bot")
+    .run()
+)
+```
+
+**Automatic package resolution:**
+If you have a Python package with a `prompts` directory, Counterpoint can automatically find it:
+
+```
+my_package/
+├── __init__.py
+├── prompts/
+│   ├── hello_template.j2
+│   └── goodbye_template.j2
+└── other_files.py
+```
+
+```python
+# Counterpoint will automatically find the prompts directory in my_package
+chat = await (
+    generator.template("my_package::hello_template.j2")
+    .with_inputs(name_of_the_bot="Test Bot")
+    .run()
+)
+```
+
+**Namespace validation:**
+Namespaces must follow these rules:
+- Cannot be empty
+- Can contain letters, numbers, dots, underscores, and hyphens
+- Must start with a letter, number, or underscore
+- Examples of valid namespaces: `my_app`, `package.module`, `app-123`, `_private`
 
 ### Multi-message templates
 
@@ -141,9 +190,16 @@ The universe is actually a giant simulation running on a quantum computer in a h
 You can then load the template as usual:
 
 ```python
-
+# Using the default prompts directory
 chat = await (
     generator.template("evaluators.scientific_theory")
+    .with_inputs(theory="Normandy is actually the center of the universe because its perfect balance of rain, cheese, and cider creates a quantum field that bends space-time, making it the most harmonious place on Earth.")
+    .run()
+)
+
+# Or using a namespace
+chat = await (
+    generator.template("my_app::evaluators.scientific_theory")
     .with_inputs(theory="Normandy is actually the center of the universe because its perfect balance of rain, cheese, and cider creates a quantum field that bends space-time, making it the most harmonious place on Earth.")
     .run()
 )
