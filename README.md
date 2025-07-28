@@ -2,6 +2,10 @@
 
 Counterpoint is a lightweight library that orchestrates LLM completions and agents in parallel workflows. Just as musical counterpoint weaves together rhythmically and melodically independent voices into a cohesive composition, Counterpoint enables multiple AI pipelines to run independently but in a _punctus contra punctum_ synchrony.
 
+## Requirements
+
+- Python 3.10 or higher
+
 # Docs
 
 Three basic elements to keep in mind:
@@ -243,3 +247,42 @@ chat = await (generator.chat("Hello, what's the weather in {{ city }}?")
     .run()
 )
 ```
+
+## Development
+
+### Python Compatibility
+
+This project maintains compatibility with Python 3.10+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
+
+```bash
+# Check Python 3.10 compatibility
+uv run vermin --target=3.10- --no-tips --violations .
+```
+
+#### Setting up Pre-commit Hooks
+
+To automatically check compatibility on every commit, install the pre-commit hooks:
+
+```bash
+# Install pre-commit (if not already installed)
+pip install pre-commit
+
+# Install the git hook scripts
+pre-commit install
+
+# (Optional) Run against all files
+pre-commit run --all-files
+```
+
+The hooks will now run automatically on `git commit` and prevent commits that don't meet Python 3.10 compatibility requirements.
+
+### Security
+
+We use [pip-audit](https://pypi.org/project/pip-audit/) to scan for known security vulnerabilities in dependencies:
+
+```bash
+# Check for security vulnerabilities
+uv run pip-audit .
+```
+
+Both compatibility and security checks are automatically run in CI for every pull request.
