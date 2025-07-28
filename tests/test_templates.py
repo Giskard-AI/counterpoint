@@ -3,8 +3,10 @@ from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
+from unittest.mock import patch, MagicMock
 
-from counterpoint.templates import MessageTemplate, PromptsManager
+from counterpoint.templates import MessageTemplate
+from counterpoint.templates.prompts_manager import PromptsManager
 
 
 @pytest.fixture
@@ -105,3 +107,80 @@ async def test_pydantic_json_rendering_with_prompts_manager():
     "description": "The Great Gatsby is a novel by F. Scott Fitzgerald."
 }"""
         assert messages[0].content == f"Here is a book:\n{expected_json}"
+
+
+class TestPromptsManager:
+    def test_register_prompts_source(self):
+        manager = PromptsManager()
+        manager.register_prompts_source("/path/to/prompts", "test")
+        assert manager.prompts_sources["test"] == Path("/path/to/prompts")
+
+    def test_register_prompts_source_warning(self):
+        manager = PromptsManager()
+        manager.register_prompts_source("/path/to/prompts", "test")
+        
+        with pytest.warns(UserWarning, match="Prompt source test already registered"):
+            manager.register_prompts_source("/another/path", "test")
+
+    def test_set_prompts_path(self):
+        manager = PromptsManager()
+        manager.set_prompts_path("/custom/prompts")
+        assert manager.prompts_path == Path("/custom/prompts")
+
+    @patch('counterpoint.templates.prompts_manager.importlib.import_module')
+    def test_resolve_package_namespace_success(self, mock_import):
+        manager = PromptsManager()
+        
+        # Mock the module
+        mock_module = MagicMock()
+        mock_module.__file__ = "/path/to/package/__init__.py"
+        mock_import.return_value = mock_module
+        
+        # Mock the prompts directory exists
+        with patch.object(Path, 'exists', return_value=True):
+            with patch.object(Path, 'is_dir', return_value=True):
+                result = manager._resolve_package_namespace("test_package")
+                
+        assert result == Path("/path/to/package/prompts")
+        mock_import.assert_called_once_with("test_package")
+
+    @patch('counterpoint.templates.prompts_manager.importlib.import_module')
+    def test_resolve_package_namespace_import_error(self, mock_import):
+        manager = PromptsManager()
+        
+        # Mock import error
+        mock_import.side_effect = ImportError("No module named 'test_package'")
+        
+        result = manager._resolve_package_namespace("test_package")
+        assert result is None
+
+    @patch('counterpoint.templates.prompts_manager.importlib.import_module')
+    def test_resolve_package_namespace_no_prompts_dir(self, mock_import):
+        manager = PromptsManager()
+        
+        # Mock the module
+        mock_module = MagicMock()
+        mock_module.__file__ = "/path/to/package/__init__.py"
+        mock_import.return_value = mock_module
+        
+        # Mock the prompts directory doesn't exist
+        with patch.object(Path, 'exists', return_value=False):
+            result = manager._resolve_package_namespace("test_package")
+            
+        assert result is None
+
+    @patch('counterpoint.templates.prompts_manager.importlib.import_module')
+    def test_resolve_package_namespace_file_module(self, mock_import):
+        manager = PromptsManager()
+        
+        # Mock a single-file module
+        mock_module = MagicMock()
+        mock_module.__file__ = "/path/to/package.py"
+        mock_import.return_value = mock_module
+        
+        # Mock the prompts directory exists
+        with patch.object(Path, 'exists', return_value=True):
+            with patch.object(Path, 'is_dir', return_value=True):
+                result = manager._resolve_package_namespace("test_package")
+                
+        assert result == Path("/path/to/prompts")
