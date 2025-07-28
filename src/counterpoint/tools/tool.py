@@ -3,6 +3,7 @@
 import inspect
 from typing import Any, Callable, Literal, TypeVar
 
+import logfire_api as logfire
 from pydantic import BaseModel, Field, create_model
 
 from counterpoint.context import RunContext
@@ -117,6 +118,7 @@ class Tool(BaseModel):
         """
         return self.fn(*args, **kwargs)
 
+    @logfire.instrument("tool.run")
     async def run(
         self, arguments: dict[str, Any], ctx: RunContext | None = None
     ) -> Any:
