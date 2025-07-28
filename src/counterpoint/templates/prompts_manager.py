@@ -62,7 +62,7 @@ class PromptsManager(BaseModel):
         Parameters
         ----------
         source : str
-            The source name
+            The path to the prompts directory for the source
         namespace : str
             The namespace to use for the source
         """
