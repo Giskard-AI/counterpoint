@@ -1,5 +1,6 @@
 import warnings
 import importlib
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -50,6 +51,7 @@ class PromptsManager(BaseModel):
 
     prompts_path: Path = Field(default_factory=lambda: Path.cwd() / "prompts")
     prompts_sources: Dict[str, Path] = Field(default_factory=dict)
+    _lock: threading.RLock = Field(default_factory=threading.RLock, exclude=True)
 
     def register_prompts_source(self, source: str, namespace: str):
         """Register a prompts source.
@@ -61,10 +63,11 @@ class PromptsManager(BaseModel):
         namespace : str
             The namespace to use for the source
         """
-        if namespace in self.prompts_sources:
-            warnings.warn(f"Prompt source {namespace} already registered")
+        with self._lock: # Locking is necessary to avoid race conditions
+            if namespace in self.prompts_sources:
+                warnings.warn(f"Prompt source {namespace} already registered")
 
-        self.prompts_sources[namespace] = Path(source)
+            self.prompts_sources[namespace] = Path(source)
 
     def set_prompts_path(self, path: str | Path):
         """Set a custom prompts path."""
@@ -104,9 +107,11 @@ class PromptsManager(BaseModel):
                     
         except ImportError:
             # Package not found
+            warnings.warn(f"Package {namespace} not found")
             pass
-        except Exception:
+        except Exception as e:
             # Other errors (permission, etc.)
+            warnings.warn(f"Error resolving package {namespace}: {e}")
             pass
             
         return None
@@ -133,9 +138,13 @@ class PromptsManager(BaseModel):
             namespace, template_name = template_name.split("::")
             
             # First check if explicitly registered
-            if namespace in self.prompts_sources:
-                prompts_path = self.prompts_sources[namespace]
-            else:
+            with self._lock: # Locking is necessary to avoid race conditions
+                if namespace in self.prompts_sources:
+                    prompts_path = self.prompts_sources[namespace]
+                else:
+                    prompts_path = None
+            
+            if prompts_path is None:
                 # Try to automatically resolve the package namespace
                 prompts_path = self._resolve_package_namespace(namespace)
                 if prompts_path is None:
