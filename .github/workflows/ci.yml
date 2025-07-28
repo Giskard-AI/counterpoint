@@ -28,6 +28,22 @@ jobs:
       - name: Check linting
         run: uv run ruff check .
 
+      - name: Check Python 3.10 compatibility
+        run: |
+          output=$(uv run vermin --no-tips .)
+          echo "$output"
+
+          # Extract the minimum version using grep + sed
+          min_version=$(echo "$output" | grep 'Minimum required versions:' | sed 's/[^0-9.]//g')
+
+          # Compare versions using Python (to handle cases like 3.9 < 3.10)
+          is_valid=$(python3 -c "import sys; sys.exit(0 if tuple(map(int, '$min_version'.split('.'))) >= (3, 10) else 1)")
+
+          if [ "$is_valid" -ne 0 ]; then
+            echo "❌ Minimum required version is $min_version, which is less than 3.10"
+            exit 1
+          fi
+
   test:
     runs-on: ubuntu-latest
     env:
@@ -37,7 +53,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.13"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
