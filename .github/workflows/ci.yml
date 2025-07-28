@@ -31,6 +31,10 @@ jobs:
       - name: Check Python 3.10 compatibility
         run: uv run vermin --target=3.10- --no-tips --violations .
 
+      - name: Check security
+        run: uv run pip-audit .
+
+
   test:
     runs-on: ubuntu-latest
     env:
