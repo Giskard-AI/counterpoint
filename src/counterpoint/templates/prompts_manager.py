@@ -51,7 +51,10 @@ class PromptsManager(BaseModel):
 
     prompts_path: Path = Field(default_factory=lambda: Path.cwd() / "prompts")
     prompts_sources: Dict[str, Path] = Field(default_factory=dict)
-    _lock: threading.RLock = Field(default_factory=threading.RLock, exclude=True)
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._lock = threading.RLock()
 
     def register_prompts_source(self, source: str, namespace: str):
         """Register a prompts source.
