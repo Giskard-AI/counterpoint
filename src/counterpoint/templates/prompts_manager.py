@@ -124,10 +124,6 @@ class PromptsManager(BaseModel):
             if hasattr(module, '__file__') and module.__file__:
                 # For regular modules, go up to the package root
                 package_root = Path(module.__file__).parent
-                
-                # If this is a file (not a directory), go up one more level
-                if package_root.is_file():
-                    package_root = package_root.parent
                     
                 # Look for the prompts directory
                 prompts_path = package_root / "prompts"

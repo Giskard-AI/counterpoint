@@ -283,9 +283,10 @@ class TestPromptsManager:
         def read_source(namespace):
             try:
                 # Simulate reading from prompts_sources
-                if namespace in manager.prompts_sources:
-                    result = manager.prompts_sources[namespace]
-                    read_results.append((namespace, result))
+                with manager._lock:
+                    if namespace in manager.prompts_sources:
+                        result = manager.prompts_sources[namespace]
+                        read_results.append((namespace, result))
             except Exception as e:
                 errors.append(e)
         
@@ -336,7 +337,7 @@ class TestPromptsManager:
             
         assert result is None
 
-    async def test_render_template_explicit_registration_fallback(self):
+    async def test_render_template_explicit_registration_precedence(self):
         """Test that explicit registration takes precedence over auto-resolution."""
         manager = PromptsManager()
         
