@@ -84,9 +84,9 @@ async def test_rate_limiter_requests_per_minute():
 
     # With correct implementation: should take ~3 seconds (60/60 = 1 second per interval)
     # With buggy implementation: takes ~0.05 seconds (1/60 ≈ 0.0167 seconds per interval)
-    assert (
-        elapsed_time >= 2.5
-    ), f"Expected at least 2.5 seconds for 4 requests at 60 rpm, got {elapsed_time:.3f} seconds"
+    assert elapsed_time >= 2.5, (
+        f"Expected at least 2.5 seconds for 4 requests at 60 rpm, got {elapsed_time:.3f} seconds"
+    )
 
 
 async def test_rate_limiter_max_concurrent():

@@ -26,9 +26,15 @@ dev = [
     "pip-audit>=2.9.0",
     "pylint-pydantic>=0.3.5",
     "pytest>=8.4.0",
-    "ruff>=0.11.13",
-    "vermin>=1.6.0",
 ]
+
+# Tools should be installed via `uv tool install`:
+# - ruff: uv tool install ruff  
+# - vermin: uv tool install vermin
+# - pre-commit: uv tool install pre-commit --with pre-commit-uv
+# 
+# Note: pytest and pip-audit stay in dev deps because they need access to project dependencies
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

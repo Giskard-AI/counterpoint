@@ -6,6 +6,20 @@ Counterpoint is a lightweight library that orchestrates LLM completions and agen
 
 - Python 3.10 or higher
 
+## Installation
+
+### Using uv (recommended)
+
+Install the package:
+```bash
+uv add counterpoint
+```
+
+For development, install with dev dependencies:
+```bash
+uv add counterpoint --dev
+```
+
 # Docs
 
 Three basic elements to keep in mind:
@@ -250,28 +264,67 @@ chat = await (generator.chat("Hello, what's the weather in {{ city }}?")
 
 ## Development
 
+### Quick Setup
+
+For quick development setup, use the provided Makefile:
+```bash
+make setup  # Install deps + tools
+make help   # See all available commands
+```
+
+### Manual Setup
+
+Install the project dependencies:
+```bash
+uv sync
+```
+
+Install development tools:
+```bash
+uv tool install ruff
+uv tool install vermin
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Note: `pytest` and `pip-audit` are included in dev dependencies since they need access to the project code.
+
+### Common Tasks
+
+```bash
+make test          # Run tests
+make lint          # Run linting
+make format        # Format code
+make check-format  # Check if code is formatted
+make check         # Run all checks (lint + format + compatibility + security)
+make ci            # Simulate CI locally
+make clean         # Clean build artifacts
+```
+
 ### Python Compatibility
 
 This project maintains compatibility with Python 3.10+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
 
 ```bash
 # Check Python 3.10 compatibility
-uv run vermin --target=3.10- --no-tips --violations .
+make check-compat
+# or manually:
+vermin --target=3.10- --no-tips --violations .
 ```
 
 #### Setting up Pre-commit Hooks
 
-To automatically check compatibility on every commit, install the pre-commit hooks:
+To automatically check compatibility on every commit:
 
 ```bash
-# Install pre-commit (if not already installed)
-pip install pre-commit
+# Quick setup (if you ran `make setup` this is already done)
+make pre-commit-install
 
-# Install the git hook scripts
+# Or manually:
+uv tool install pre-commit --with pre-commit-uv
 pre-commit install
 
-# (Optional) Run against all files
-pre-commit run --all-files
+# Run on all files
+make pre-commit-run
 ```
 
 The hooks will now run automatically on `git commit` and prevent commits that don't meet Python 3.10 compatibility requirements.
@@ -282,6 +335,8 @@ We use [pip-audit](https://pypi.org/project/pip-audit/) to scan for known securi
 
 ```bash
 # Check for security vulnerabilities
+make security
+# or manually:
 uv run pip-audit .
 ```
 
