@@ -23,16 +23,16 @@ test: ## Run tests
 	uv run pytest
 
 lint: ## Run linting checks
-	ruff check .
+	uv tool run ruff check .
 
 format: ## Format code with ruff
-	ruff format .
+	uv tool run ruff format .
 
 check-format: ## Check if code is formatted correctly
-	ruff format --check .
+	uv tool run ruff format --check .
 
 check-compat: ## Check Python 3.10 compatibility
-	vermin --target=3.10- --no-tips --violations .
+	uv tool run vermin --target=3.10- --no-tips --violations .
 
 security: ## Check for security vulnerabilities
 	uv run pip-audit .
