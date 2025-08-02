@@ -308,7 +308,7 @@ This project maintains compatibility with Python 3.10+. We use [vermin](https://
 # Check Python 3.10 compatibility
 make check-compat
 # or manually:
-vermin --target=3.10- --no-tips --violations .
+uv tool run vermin --target=3.10- --no-tips --violations .
 ```
 
 #### Setting up Pre-commit Hooks
