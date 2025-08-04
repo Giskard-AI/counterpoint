@@ -4,7 +4,7 @@ version = "0.1.0"
 description = " A lightweight library that orchestrates LLM completions and agents in parallel workflows "
 readme = "README.md"
 authors = [{ name = "Giskard R&D", email = "rnd@giskard.ai" }]
-requires-python = ">=3.12.3"
+requires-python = ">=3.10"
 dependencies = [
     "litellm>=1.72.2",
     "pydantic>=2.11.5",
@@ -23,10 +23,18 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
+    "pip-audit>=2.9.0",
     "pylint-pydantic>=0.3.5",
     "pytest>=8.4.0",
-    "ruff>=0.11.13",
 ]
+
+# Tools should be installed via `uv tool install`:
+# - ruff: uv tool install ruff  
+# - vermin: uv tool install vermin
+# - pre-commit: uv tool install pre-commit --with pre-commit-uv
+# 
+# Note: pytest and pip-audit stay in dev deps because they need access to project dependencies
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
