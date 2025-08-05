@@ -49,12 +49,16 @@ check: lint check-format check-compat security ## Run all checks (lint, format, 
 
 all: format check test ## Format, check, and test
 
+# Downstream testing
+test-downstream: ## Test downstream packages (requires git and network access)
+	@./scripts/test-downstream.sh
+
 # CI simulation
-ci: check test ## Run the same checks as CI
+ci: check test test-downstream ## Run the same checks as CI
 
 clean: ## Clean up build artifacts and caches
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf build/ dist/ .coverage htmlcov/
+	rm -rf build/ dist/ .coverage htmlcov/ .downstream/
