@@ -28,7 +28,6 @@ jobs:
       - name: Run all checks
         run: make check
 
-
   test:
     runs-on: ubuntu-latest
     env:
@@ -53,3 +52,79 @@ jobs:
 
       - name: Run tests
         run: make test
+
+  downstream-tests:
+    runs-on: ubuntu-latest
+    needs: [pre_checks, test]
+    env:
+      TEST_MODEL: "gemini/gemini-2.0-flash"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        downstream-package: ["lidar"]
+    steps:
+      - name: Checkout counterpoint code
+        uses: actions/checkout@v4
+        with:
+          path: counterpoint
+
+      - name: Checkout downstream package
+        uses: actions/checkout@v4
+        with:
+          repository: Giskard-AI/${{ matrix.downstream-package }}
+          path: ${{ matrix.downstream-package }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build counterpoint wheel
+        working-directory: counterpoint
+        run: |
+          uv build
+
+      - name: Setup downstream package environment
+        working-directory: ${{ matrix.downstream-package }}
+        run: |
+          # Update pyproject.toml to use local counterpoint build
+          if [ -f pyproject.toml ]; then
+            # Check if counterpoint is already in dependencies
+            if grep -q "counterpoint" pyproject.toml; then
+              # Copy wheel to current directory with proper name
+              WHEEL_PATH=$(ls ../counterpoint/dist/*.whl | head -1)
+              WHEEL_NAME=$(basename "$WHEEL_PATH")
+              cp "$WHEEL_PATH" "./$WHEEL_NAME"
+              
+              # Handle uv sources format: counterpoint = { git = "..." }
+              if grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
+                # Replace the git source with path in [tool.uv.sources] section
+                sed -i.bak "/\[tool\.uv\.sources\]/,/^\[/ s|counterpoint = { git = \"[^\"]*\" }|counterpoint = { path = \"./$WHEEL_NAME\" }|g" pyproject.toml
+                rm -f pyproject.toml.bak
+              else
+                # If no [tool.uv.sources] section, add one
+                echo "" >> pyproject.toml
+                echo "[tool.uv.sources]" >> pyproject.toml
+                echo "counterpoint = { path = \"./$WHEEL_NAME\" }" >> pyproject.toml
+              fi
+            else
+              echo "Warning: counterpoint not found in dependencies"
+            fi
+          fi
+
+          # Install dependencies
+          uv sync --all-extras
+
+      - name: Run downstream tests
+        working-directory: ${{ matrix.downstream-package }}
+        run: |
+          # Run all tests
+          if [ -f Makefile ] && grep -q "^test:" Makefile; then
+            make test
+          else
+            uv run pytest tests/ --maxfail=5
+          fi
