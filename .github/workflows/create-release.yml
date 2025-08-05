@@ -67,7 +67,7 @@ jobs:
 
       # Update project version
       - name: Update project version
-        run: toml set --toml-type string pyproject.toml project.version "${{ env.VERSION_NUMBER }}"
+        run: toml set pyproject.toml project.version "${{ env.VERSION_NUMBER }}"
 
       - name: Configure git
         run: |
