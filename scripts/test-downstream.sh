@@ -5,6 +5,18 @@
 
 set -e
 
+cleanup() {
+    if [ ! -d "$DOWNSTREAM_DIR" ]; then return; fi
+    log_info "Cleaning up..."
+    for pkg_dir in "$DOWNSTREAM_DIR"/*; do
+        if [ -d "$pkg_dir" ] && [ -f "$pkg_dir/pyproject.toml.backup" ]; then
+            log_info "Restoring pyproject.toml for $(basename "$pkg_dir")"
+            mv "$pkg_dir/pyproject.toml.backup" "$pkg_dir/pyproject.toml"
+        fi
+    done
+}
+trap cleanup EXIT
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DOWNSTREAM_DIR="$PROJECT_ROOT/.downstream"
