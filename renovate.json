@@ -30,6 +30,12 @@
                 "python"
             ],
             "enabled": false
+        }, 
+        {
+            "matchPackageNames": [
+                "python"
+            ],
+            "enabled": false
         }
     ]
 }
