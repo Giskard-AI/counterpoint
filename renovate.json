@@ -26,11 +26,9 @@
          "matchManagers": [
             "dockerfile"
          ],
+         "matchPackageNames": ["python"],
          "description": "Disable python versions from updating in Dockerfile",
          "enabled": false,
-         "matchPackageNames": [
-            "/giskard/python/"
-         ]
       }
     ]
 }
