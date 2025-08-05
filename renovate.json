@@ -23,12 +23,9 @@
             ]
         },
         {
-         "matchManagers": [
-            "dockerfile"
-         ],
-         "matchPackageNames": ["python"],
-         "description": "Disable python versions from updating in Dockerfile",
-         "enabled": false,
-      }
+          "managers": ["dockerfile"],
+          "matchPackageNames": ["python"],
+          "enabled": false
+        }
     ]
 }
