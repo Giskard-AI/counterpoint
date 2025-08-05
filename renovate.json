@@ -23,9 +23,13 @@
             ]
         },
         {
-          "managers": ["pyenv"],
-          "matchPackageNames": ["python"],
-          "enabled": false
+            "matchManagers": [
+                "pyenv"
+            ],
+            "matchPackageNames": [
+                "python"
+            ],
+            "enabled": false
         }
     ]
 }
