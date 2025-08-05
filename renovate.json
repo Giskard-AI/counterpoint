@@ -23,7 +23,7 @@
             ]
         },
         {
-          "managers": ["dockerfile"],
+          "managers": ["pyenv"],
           "matchPackageNames": ["python"],
           "enabled": false
         }
