@@ -11,11 +11,13 @@ Counterpoint is a lightweight library that orchestrates LLM completions and agen
 ### Using uv (recommended)
 
 Install the package:
+
 ```bash
 uv add counterpoint
 ```
 
 For development, install with dev dependencies:
+
 ```bash
 uv add counterpoint --dev
 ```
@@ -267,6 +269,7 @@ chat = await (generator.chat("Hello, what's the weather in {{ city }}?")
 ### Quick Setup
 
 For quick development setup, use the provided Makefile:
+
 ```bash
 make setup  # Install deps + tools
 make help   # See all available commands
@@ -275,11 +278,13 @@ make help   # See all available commands
 ### Manual Setup
 
 Install the project dependencies:
+
 ```bash
 uv sync
 ```
 
 Install development tools:
+
 ```bash
 uv tool install ruff
 uv tool install vermin
@@ -291,13 +296,27 @@ Note: `pytest` and `pip-audit` are included in dev dependencies since they need 
 ### Common Tasks
 
 ```bash
-make test          # Run tests
-make lint          # Run linting
-make format        # Format code
-make check-format  # Check if code is formatted
-make check         # Run all checks (lint + format + compatibility + security)
-make ci            # Simulate CI locally
-make clean         # Clean build artifacts
+make test             # Run tests
+make lint             # Run linting
+make format           # Format code
+make check-format     # Check if code is formatted
+make check            # Run all checks (lint + format + compatibility + security)
+make test-downstream  # Test downstream packages that depend on counterpoint
+make ci               # Simulate CI locally
+make clean            # Clean build artifacts
+```
+
+### Downstream Testing
+
+`counterpoint` includes automated testing of downstream packages to ensure changes don't break dependencies.
+Quick usage:
+
+```bash
+# Test all downstream packages
+make test-downstream
+
+# Test specific package
+./scripts/test-downstream.sh --package lidar
 ```
 
 ### Python Compatibility
