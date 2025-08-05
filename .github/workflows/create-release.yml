@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   packages: read
+  pull-requests: write
 
 jobs:
   build-and-release:
@@ -68,32 +69,15 @@ jobs:
       # Update project version
       - name: Update project version
         run: toml set --toml-path pyproject.toml project.version "${{ env.VERSION_NUMBER }}"
-        
-      - name: Configure git
-        run: |
-          git config --global user.name 'BotReleaser'
-          git config --global user.email 'bot.releaser@users.noreply.github.com'
 
-      - name: Commit & tag
-        run: |
-          git add pyproject.toml
-          git commit -m "Release ${{ env.VERSION_NAME }}: Bump version to ${{ env.VERSION_NUMBER }}"
-          git tag ${{ env.VERSION_NAME }}
-          git push origin main --tags
-
-      # Install dependencies
-      - name: Install dependencies
-        run: uv sync --frozen --all-extras --dev
-
-      - name: Build package
-        run: uv build
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Commit changes and create PR
+        uses: peter-evans/create-pull-request@v6
         with:
-          tag_name: ${{ env.VERSION_NAME }}
-          fail_on_unmatched_files: true
-          generate_release_notes: true
-          files: |
-            dist/*.tar.gz
-            dist/*.whl
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/${{ env.VERSION_NAME }}
+          commit-message: "Release ${{ env.VERSION_NAME }}: Bump version to ${{ env.VERSION_NUMBER }}"
+          title: "Release ${{ env.VERSION_NAME }}"
+          body: |
+            This PR bumps the version to `${{ env.VERSION_NUMBER }}` for release.
+          labels: release
+          draft: false
