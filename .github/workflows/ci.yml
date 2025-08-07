@@ -124,8 +124,11 @@ jobs:
             grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml
           fi
 
+          # Remove existing lock file to force fresh resolution
+          rm -f uv.lock
+
           # Install dependencies with lock file regeneration to resolve conflicts
-          uv sync --all-extras --upgrade
+          uv sync --all-extras --upgrade --resolution lowest-direct
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
