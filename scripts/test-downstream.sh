@@ -104,27 +104,13 @@ log_info "Starting downstream testing for packages: ${SELECTED_PACKAGES[*]}"
 if [ "$CLEAN" = true ]; then
     log_info "Cleaning downstream directories..."
     rm -rf "$DOWNSTREAM_DIR"
-    rm -rf "$PROJECT_ROOT/dist"
 fi
 
 # Create downstream directory
 mkdir -p "$DOWNSTREAM_DIR"
 
-# Build counterpoint wheel
-log_info "Building counterpoint wheel..."
-cd "$PROJECT_ROOT"
-if ! uv build; then
-    log_error "Failed to build counterpoint wheel"
-    exit 1
-fi
-
-WHEEL_PATH=$(ls "$PROJECT_ROOT/dist"/*.whl | head -1)
-if [ -z "$WHEEL_PATH" ]; then
-    log_error "No wheel file found in dist/"
-    exit 1
-fi
-
-log_success "Built wheel: $(basename "$WHEEL_PATH")"
+# No need to build wheel for editable installs
+log_info "Using editable install approach for local counterpoint..."
 
 # Test each package
 failed_packages=()
@@ -154,38 +140,44 @@ for package in "${SELECTED_PACKAGES[@]}"; do
     
     cd "$package_dir"
     
-    # Copy wheel and update dependencies
+    # Update dependencies to use local counterpoint
     log_info "Setting up $package with local counterpoint..."
-    WHEEL_NAME=$(basename "$WHEEL_PATH")
-    cp "$WHEEL_PATH" "./$WHEEL_NAME"
     
     # Backup original pyproject.toml
     if [ -f pyproject.toml ]; then
         cp pyproject.toml pyproject.toml.backup
         
-        # Update counterpoint dependency to use local wheel
-        if grep -q "counterpoint" pyproject.toml; then
-            # Handle both dependency formats:
-            # 1. Simple dependency in array: "counterpoint"
-            # 2. Source specification: counterpoint = { git = "..." }
-            
-            # Ensure [tool.uv.sources] exists, creating it if necessary.
-            if ! grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
-                echo "" >> pyproject.toml
-                echo "[tool.uv.sources]" >> pyproject.toml
-            fi
-
-            # Remove any existing counterpoint source definition from the section to avoid duplicates.
-            sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/ { /\s*counterpoint\s*=/d; }' pyproject.toml
-
-            # Add the new counterpoint source pointing to the local wheel.
-            awk -v whl="$WHEEL_NAME" '/\[tool\.uv\.sources\]/{print;print "counterpoint = { path = \"./" whl "\" }";next}1' pyproject.toml > pyproject.toml.tmp && mv pyproject.toml.tmp pyproject.toml
-
-            rm -f pyproject.toml.bak
-            log_success "Updated counterpoint source to use local wheel"
-        else
-            log_warning "counterpoint not found in dependencies - this might not be a counterpoint consumer"
+        # Show current pyproject.toml for debugging
+        log_info "=== Original pyproject.toml [tool.uv.sources] section ==="
+        grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml || echo "No [tool.uv.sources] section found"
+        
+        # Check if [tool.uv.sources] section exists
+        if ! grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
+            log_error "[tool.uv.sources] section not found in pyproject.toml"
+            log_error "Downstream package MUST have counterpoint in [tool.uv.sources] section"
+            failed_packages+=("$package")
+            continue
         fi
+        
+        # Check if counterpoint is defined in [tool.uv.sources] section
+        if ! sed -n '/\[tool\.uv\.sources\]/,/^\[/p' pyproject.toml | grep -q "^counterpoint *="; then
+            log_error "counterpoint not found in [tool.uv.sources] section"
+            log_error "Downstream package MUST have counterpoint in [tool.uv.sources] section"
+            failed_packages+=("$package")
+            continue
+        fi
+        
+        # Update only the counterpoint entry in [tool.uv.sources] section
+        # This preserves other entries in the section
+        sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/{
+            /^counterpoint *=/{c\
+counterpoint = { path = "'$PROJECT_ROOT'", editable = true }
+            }
+        }' pyproject.toml
+        
+        log_info "=== Updated pyproject.toml [tool.uv.sources] section ==="
+        grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml
+        log_success "Updated counterpoint source to use local development version"
     else
         log_warning "No pyproject.toml found in $package"
         failed_packages+=("$package")
@@ -194,6 +186,14 @@ for package in "${SELECTED_PACKAGES[@]}"; do
     
     # Install dependencies
     log_info "Installing dependencies for $package..."
+    
+    # Update uv.lock file
+    if ! uv lock; then
+        log_error "Failed to update uv.lock for $package"
+        failed_packages+=("$package")
+        continue
+    fi
+    
     if ! uv sync --all-extras; then
         log_error "Failed to sync dependencies for $package"
         failed_packages+=("$package")
@@ -227,8 +227,7 @@ for package in "${SELECTED_PACKAGES[@]}"; do
         mv pyproject.toml.backup pyproject.toml
     fi
     
-    # Clean up wheel
-    rm -f "$WHEEL_NAME"
+    # No cleanup needed for editable install
     
     if [ "$test_passed" = true ]; then
         log_success "Tests passed for $package"
