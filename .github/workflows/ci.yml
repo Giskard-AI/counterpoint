@@ -135,9 +135,10 @@ jobs:
           grep -A 10 "dependencies" ../counterpoint/pyproject.toml
 
           # Install dependencies with frozen flag to skip strict resolution
-          uv sync --all-extras --frozen || {
-            echo "=== Frozen sync failed, trying with upgrade ==="
-            uv sync --all-extras --upgrade --frozen
+          uv sync --all-extras || {
+            echo "=== Standard sync failed, trying to create lock file first ==="
+            uv lock --upgrade
+            uv sync --all-extras --frozen
           }
 
       - name: Run downstream tests
