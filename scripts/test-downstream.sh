@@ -169,19 +169,20 @@ for package in "${SELECTED_PACKAGES[@]}"; do
             # 1. Simple dependency in array: "counterpoint"
             # 2. Source specification: counterpoint = { git = "..." }
             
-            # Replace in [tool.uv.sources] section if it exists
-            if grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
-                # Replace the git source with path
-                sed -i.bak "/\[tool\.uv\.sources\]/,/^\[/ s|counterpoint = { git = \"[^\"]*\" }|counterpoint = { path = \"./$WHEEL_NAME\" }|g" pyproject.toml
-                rm -f pyproject.toml.bak
-                log_success "Updated counterpoint source to use local wheel"
-            else
-                # If no [tool.uv.sources] section, add one
+            # Ensure [tool.uv.sources] exists, creating it if necessary.
+            if ! grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
                 echo "" >> pyproject.toml
                 echo "[tool.uv.sources]" >> pyproject.toml
-                echo "counterpoint = { path = \"./$WHEEL_NAME\" }" >> pyproject.toml
-                log_success "Added counterpoint source configuration for local wheel"
             fi
+
+            # Remove any existing counterpoint source definition from the section to avoid duplicates.
+            sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/ { /\s*counterpoint\s*=/d; }' pyproject.toml
+
+            # Add the new counterpoint source pointing to the local wheel.
+            awk -v whl="$WHEEL_NAME" '/\[tool\.uv\.sources\]/{print;print "counterpoint = { path = \"./" whl "\" }";next}1' pyproject.toml > pyproject.toml.tmp && mv pyproject.toml.tmp pyproject.toml
+
+            rm -f pyproject.toml.bak
+            log_success "Updated counterpoint source to use local wheel"
         else
             log_warning "counterpoint not found in dependencies - this might not be a counterpoint consumer"
         fi
