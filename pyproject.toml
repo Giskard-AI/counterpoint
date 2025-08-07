@@ -7,7 +7,7 @@ authors = [{ name = "Giskard R&D", email = "rnd@giskard.ai" }]
 requires-python = ">=3.10"
 dependencies = [
     "litellm==1.72.4",
-    "pydantic==2.11.7",
+    "pydantic==2.11.5",
     "pytest-asyncio==1.0.0",
     "griffe==1.7.3",
     "typing-extensions==4.14.0",
