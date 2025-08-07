@@ -134,15 +134,10 @@ jobs:
           echo "=== Counterpoint dependencies ==="
           grep -A 10 "dependencies" ../counterpoint/pyproject.toml
 
-          # Install dependencies with lock file regeneration to resolve conflicts
-          uv sync --all-extras --upgrade --resolution highest || {
-            echo "=== Standard sync failed, trying alternative approach ==="
-            # If that fails, try installing counterpoint without its dependencies first
-            echo "counterpoint = { path = \"../counterpoint\", editable = true, extras = [] }" > temp_sources.toml
-            mv temp_sources.toml temp_pyproject_addition.txt
-            # Remove counterpoint from dependencies temporarily and add it back later
-            uv add --editable ../counterpoint --no-sync
-            uv sync --all-extras --upgrade --resolution highest
+          # Install dependencies with frozen flag to skip strict resolution
+          uv sync --all-extras --frozen || {
+            echo "=== Frozen sync failed, trying with upgrade ==="
+            uv sync --all-extras --upgrade --frozen
           }
 
       - name: Run downstream tests
