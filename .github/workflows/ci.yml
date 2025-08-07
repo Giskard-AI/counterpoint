@@ -108,38 +108,36 @@ jobs:
             echo "=== Original pyproject.toml [tool.uv.sources] section ==="
             grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml || echo "No [tool.uv.sources] section found"
             
-            # Remove existing [tool.uv.sources] section if it exists
-            if grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
-              # Remove the entire [tool.uv.sources] section
-              sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/{ /^\[tool\.uv\.sources\]/d; /^\[/!d; }' pyproject.toml
+            # Check if [tool.uv.sources] section exists
+            if ! grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
+              echo "ERROR: [tool.uv.sources] section not found in pyproject.toml"
+              echo "Downstream package MUST have counterpoint in [tool.uv.sources] section"
+              exit 1
             fi
             
-            # Add new [tool.uv.sources] section with local source
-            echo "" >> pyproject.toml
-            echo "[tool.uv.sources]" >> pyproject.toml
-            echo "counterpoint = { path = \"../counterpoint\", editable = true }" >> pyproject.toml
+            # Check if counterpoint is defined in [tool.uv.sources] section
+            if ! sed -n '/\[tool\.uv\.sources\]/,/^\[/p' pyproject.toml | grep -q "^counterpoint\s*="; then
+              echo "ERROR: counterpoint not found in [tool.uv.sources] section"
+              echo "Downstream package MUST have counterpoint in [tool.uv.sources] section"
+              exit 1
+            fi
             
-            # Show updated pyproject.toml for debugging
+            # Update only the counterpoint entry in [tool.uv.sources] section
+            # This preserves other entries in the section
+            sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/{
+              /^counterpoint\s*=/c\
+            counterpoint = { path = "../counterpoint", editable = true }
+            }' pyproject.toml
+            
             echo "=== Updated pyproject.toml [tool.uv.sources] section ==="
             grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml
           fi
 
-          # Remove existing lock file to force fresh resolution
-          rm -f uv.lock
+          # Update uv.lock file
+          uv lock
 
-          # Clear uv cache to ensure fresh resolution
-          uv cache clean
-
-          # Debug: Show what's in the counterpoint pyproject.toml
-          echo "=== Counterpoint dependencies ==="
-          grep -A 10 "dependencies" ../counterpoint/pyproject.toml
-
-          # Install dependencies with frozen flag to skip strict resolution
-          uv sync --all-extras || {
-            echo "=== Standard sync failed, trying to create lock file first ==="
-            uv lock --upgrade
-            uv sync --all-extras --frozen
-          }
+          # Install dependencies
+          uv sync --all-extras
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
