@@ -73,12 +73,17 @@ jobs:
         with:
           path: counterpoint
 
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
+        with:
+          ssh-private-key: |
+            ${{ secrets[matrix.ssh_secret] }}
+
       - name: Checkout downstream package
         uses: actions/checkout@v4
         with:
           repository: Giskard-AI/${{ matrix.pkg }}
           path: ${{ matrix.pkg }}
-          ssh-key: ${{ secrets[matrix.ssh_secret] }}
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
