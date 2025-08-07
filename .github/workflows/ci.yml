@@ -128,7 +128,7 @@ jobs:
           rm -f uv.lock
 
           # Install dependencies with lock file regeneration to resolve conflicts
-          uv sync --all-extras --upgrade --resolution lowest-direct
+          uv sync --all-extras --upgrade --resolution highest --no-strict
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
