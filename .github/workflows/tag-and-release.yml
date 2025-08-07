@@ -1,0 +1,65 @@
+name: Tag and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  tag-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION_NUMBER=$(grep '^version\s*=' pyproject.toml | head -1 | cut -d '"' -f2)
+          VERSION_NAME="v${VERSION_NUMBER}"
+          echo "version_number=${VERSION_NUMBER}" >> $GITHUB_OUTPUT
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        run: |
+          if git rev-parse "refs/tags/${{ steps.get_version.outputs.version_name }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.version_name }} already exists. Skipping."
+            exit 0
+          fi
+
+      - name: Configure git
+        run: |
+          git config --global user.name 'BotReleaser'
+          git config --global user.email 'bot.releaser@users.noreply.github.com'
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.get_version.outputs.version_name }}
+          git push origin ${{ steps.get_version.outputs.version_name }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc # v6
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras --dev
+
+      - name: Build package
+        run: uv build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version_name }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.whl
