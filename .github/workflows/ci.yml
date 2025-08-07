@@ -114,10 +114,10 @@ jobs:
               sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/{ /^\[tool\.uv\.sources\]/d; /^\[/!d; }' pyproject.toml
             fi
             
-            # Add new [tool.uv.sources] section with local wheel
+            # Add new [tool.uv.sources] section with local source
             echo "" >> pyproject.toml
             echo "[tool.uv.sources]" >> pyproject.toml
-            echo "counterpoint = { path = \"./$WHEEL_NAME\" }" >> pyproject.toml
+            echo "counterpoint = { path = \"../counterpoint\", editable = true }" >> pyproject.toml
             
             # Show updated pyproject.toml for debugging
             echo "=== Updated pyproject.toml [tool.uv.sources] section ==="
@@ -128,7 +128,7 @@ jobs:
           rm -f uv.lock
 
           # Install dependencies with lock file regeneration to resolve conflicts
-          uv sync --all-extras --upgrade --resolution highest --no-strict
+          uv sync --all-extras --upgrade --resolution highest
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
