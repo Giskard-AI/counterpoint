@@ -127,8 +127,23 @@ jobs:
           # Remove existing lock file to force fresh resolution
           rm -f uv.lock
 
+          # Clear uv cache to ensure fresh resolution
+          uv cache clean
+
+          # Debug: Show what's in the counterpoint pyproject.toml
+          echo "=== Counterpoint dependencies ==="
+          grep -A 10 "dependencies" ../counterpoint/pyproject.toml
+
           # Install dependencies with lock file regeneration to resolve conflicts
-          uv sync --all-extras --upgrade --resolution highest
+          uv sync --all-extras --upgrade --resolution highest || {
+            echo "=== Standard sync failed, trying alternative approach ==="
+            # If that fails, try installing counterpoint without its dependencies first
+            echo "counterpoint = { path = \"../counterpoint\", editable = true, extras = [] }" > temp_sources.toml
+            mv temp_sources.toml temp_pyproject_addition.txt
+            # Remove counterpoint from dependencies temporarily and add it back later
+            uv add --editable ../counterpoint --no-sync
+            uv sync --all-extras --upgrade --resolution highest
+          }
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
