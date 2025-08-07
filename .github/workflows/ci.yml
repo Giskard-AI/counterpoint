@@ -78,11 +78,9 @@ jobs:
         with:
           ssh-private-key: ${{ secrets[matrix.ssh_secret] }}
 
-      - name: Checkout downstream package
-        uses: actions/checkout@v4
-        with:
-          repository: Giskard-AI/${{ matrix.pkg }}
-          path: ${{ matrix.pkg }}
+      - name: Clone downstream package
+        run: |
+          git clone git@github.com:Giskard-AI/${{ matrix.pkg }}.git ${{ matrix.pkg }}
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
