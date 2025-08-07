@@ -76,8 +76,7 @@ jobs:
       - name: Setup SSH
         uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
         with:
-          ssh-private-key: |
-            ${{ secrets[matrix.ssh_secret] }}
+          ssh-private-key: ${{ secrets[matrix.ssh_secret] }}
 
       - name: Checkout downstream package
         uses: actions/checkout@v4
