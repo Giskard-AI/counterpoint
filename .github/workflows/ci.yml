@@ -124,8 +124,8 @@ jobs:
             grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml
           fi
 
-          # Install dependencies
-          uv sync --all-extras
+          # Install dependencies with lock file regeneration to resolve conflicts
+          uv sync --all-extras --upgrade
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
