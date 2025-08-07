@@ -99,27 +99,29 @@ jobs:
         run: |
           # Update pyproject.toml to use local counterpoint build
           if [ -f pyproject.toml ]; then
-            # Check if counterpoint is already in dependencies
-            if grep -q "counterpoint" pyproject.toml; then
-              # Copy wheel to current directory with proper name
-              WHEEL_PATH=$(ls ../counterpoint/dist/*.whl | head -1)
-              WHEEL_NAME=$(basename "$WHEEL_PATH")
-              cp "$WHEEL_PATH" "./$WHEEL_NAME"
-              
-              # Handle uv sources format: counterpoint = { git = "..." }
-              if grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
-                # Replace the git source with path in [tool.uv.sources] section
-                sed -i.bak "/\[tool\.uv\.sources\]/,/^\[/ s|counterpoint = { git = \"[^\"]*\" }|counterpoint = { path = \"./$WHEEL_NAME\" }|g" pyproject.toml
-                rm -f pyproject.toml.bak
-              else
-                # If no [tool.uv.sources] section, add one
-                echo "" >> pyproject.toml
-                echo "[tool.uv.sources]" >> pyproject.toml
-                echo "counterpoint = { path = \"./$WHEEL_NAME\" }" >> pyproject.toml
-              fi
-            else
-              echo "Warning: counterpoint not found in dependencies"
+            # Copy wheel to current directory with proper name
+            WHEEL_PATH=$(ls ../counterpoint/dist/*.whl | head -1)
+            WHEEL_NAME=$(basename "$WHEEL_PATH")
+            cp "$WHEEL_PATH" "./$WHEEL_NAME"
+            
+            # Show current pyproject.toml for debugging
+            echo "=== Original pyproject.toml [tool.uv.sources] section ==="
+            grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml || echo "No [tool.uv.sources] section found"
+            
+            # Remove existing [tool.uv.sources] section if it exists
+            if grep -q "\[tool\.uv\.sources\]" pyproject.toml; then
+              # Remove the entire [tool.uv.sources] section
+              sed -i.bak '/\[tool\.uv\.sources\]/,/^\[/{ /^\[tool\.uv\.sources\]/d; /^\[/!d; }' pyproject.toml
             fi
+            
+            # Add new [tool.uv.sources] section with local wheel
+            echo "" >> pyproject.toml
+            echo "[tool.uv.sources]" >> pyproject.toml
+            echo "counterpoint = { path = \"./$WHEEL_NAME\" }" >> pyproject.toml
+            
+            # Show updated pyproject.toml for debugging
+            echo "=== Updated pyproject.toml [tool.uv.sources] section ==="
+            grep -A 10 "\[tool\.uv\.sources\]" pyproject.toml
           fi
 
           # Install dependencies
