@@ -59,7 +59,7 @@ class PromptsManager(BaseModel):
 
     def register_prompts_source(self, source: str, namespace: str):
         """Register a prompts source.
-        
+
         Parameters
         ----------
         source : str
@@ -69,8 +69,8 @@ class PromptsManager(BaseModel):
         """
         # Validate namespace format
         self._validate_namespace(namespace)
-        
-        with self._lock: # Locking is necessary to avoid race conditions
+
+        with self._lock:  # Locking is necessary to avoid race conditions
             if namespace in self.prompts_sources:
                 warnings.warn(f"Prompt source {namespace} already registered")
 
@@ -83,12 +83,12 @@ class PromptsManager(BaseModel):
     def _validate_namespace(self, namespace: str) -> None:
         """
         Validate namespace format.
-        
+
         Parameters
         ----------
         namespace : str
             The namespace to validate
-            
+
         Raises
         ------
         ValueError
@@ -96,21 +96,21 @@ class PromptsManager(BaseModel):
         """
         if not namespace:
             raise ValueError("Empty namespace not allowed")
-        
+
         # Check for invalid characters - allow letters, numbers, dots, underscores, hyphens
         # Be permissive about starting characters to allow module-like names
-        if not re.match(r'^[a-zA-Z0-9_][a-zA-Z0-9._-]*$', namespace):
+        if not re.match(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]*$", namespace):
             raise ValueError("Invalid namespace format")
 
     def _resolve_package_namespace(self, namespace: str) -> Optional[Path]:
         """
         Automatically resolve a namespace to a package's prompts directory.
-        
+
         Parameters
         ----------
         namespace : str
             The namespace/package name to resolve
-            
+
         Returns
         -------
         Optional[Path]
@@ -119,17 +119,17 @@ class PromptsManager(BaseModel):
         try:
             # Try to import the package
             module = importlib.import_module(namespace)
-            
+
             # Get the package's root directory
-            if hasattr(module, '__file__') and module.__file__:
+            if hasattr(module, "__file__") and module.__file__:
                 # For regular modules, go up to the package root
                 package_root = Path(module.__file__).parent
-                    
+
                 # Look for the prompts directory
                 prompts_path = package_root / "prompts"
                 if prompts_path.exists() and prompts_path.is_dir():
                     return prompts_path
-                    
+
         except ImportError:
             # Package not found
             warnings.warn(f"Package {namespace} not found")
@@ -138,7 +138,7 @@ class PromptsManager(BaseModel):
             # Other errors (permission, etc.)
             warnings.warn(f"Error resolving package {namespace}: {e}")
             pass
-            
+
         return None
 
     async def render_template(
@@ -161,22 +161,24 @@ class PromptsManager(BaseModel):
         """
         if "::" in template_name:
             namespace, template_name = template_name.split("::", 1)
-            
+
             # Validate namespace format
             self._validate_namespace(namespace)
-            
+
             # First check if explicitly registered
-            with self._lock: # Locking is necessary to avoid race conditions
+            with self._lock:  # Locking is necessary to avoid race conditions
                 if namespace in self.prompts_sources:
                     prompts_path = self.prompts_sources[namespace]
                 else:
                     prompts_path = None
-            
+
             if prompts_path is None:
                 # Try to automatically resolve the package namespace
                 prompts_path = self._resolve_package_namespace(namespace)
                 if prompts_path is None:
-                    raise ValueError(f"Prompt source {namespace} not registered and package not found")
+                    raise ValueError(
+                        f"Prompt source {namespace} not registered and package not found"
+                    )
         else:
             prompts_path = self.prompts_path
 
