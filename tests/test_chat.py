@@ -2,6 +2,7 @@ import pytest
 from pydantic import BaseModel
 
 from counterpoint.chat import Chat, Message
+from counterpoint.exceptions import CounterpointConfigError
 
 
 def test_chat_output():
@@ -33,5 +34,5 @@ def test_chat_output_without_output_model():
     ]
 
     chat = Chat(messages=messages)
-    with pytest.raises(ValueError):
+    with pytest.raises(CounterpointConfigError):
         chat.output

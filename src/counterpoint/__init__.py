@@ -1,5 +1,11 @@
 from .chat import Chat, Message
 from .context import RunContext
+from .exceptions import (
+    CounterpointConfigError,
+    CounterpointError,
+    ToolError,
+    ToolDefinitionError,
+)
 from .generators import Generator
 from .pipeline import Pipeline
 from .rate_limiter import RateLimiter, RateLimiterStrategy
@@ -19,4 +25,8 @@ __all__ = [
     "RateLimiterStrategy",
     "RateLimiter",
     "RunContext",
+    "CounterpointError",
+    "CounterpointConfigError",
+    "ToolError",
+    "ToolDefinitionError",
 ]

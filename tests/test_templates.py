@@ -40,7 +40,9 @@ async def test_multi_message_template_parsing(prompts_manager):
 
 
 async def test_invalid_template(prompts_manager):
-    with pytest.raises(ValueError):
+    from counterpoint.exceptions import CounterpointConfigError
+
+    with pytest.raises(CounterpointConfigError):
         await prompts_manager.render_template("invalid.j2")
 
 
