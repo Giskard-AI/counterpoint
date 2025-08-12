@@ -141,6 +141,8 @@ jobs:
 
       - name: Run downstream tests
         working-directory: ${{ matrix.pkg }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           # Run all tests
           if [ -f Makefile ] && grep -q "^test:" Makefile; then
