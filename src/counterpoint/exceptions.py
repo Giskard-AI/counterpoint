@@ -20,4 +20,3 @@ class ToolError(CounterpointError):
 
 class ToolDefinitionError(ToolError):
     """Raised when a tool is defined incorrectly (e.g., bad annotations)."""
-
