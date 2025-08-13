@@ -401,7 +401,7 @@ requires-dist = [
     { name = "griffe", specifier = "==1.7.3" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "litellm", specifier = "==1.72.4" },
-    { name = "logfire-api", specifier = "==3.22.0" },
+    { name = "logfire-api", specifier = "==4.3.3" },
     { name = "pydantic", specifier = "==2.11.5" },
     { name = "pytest-asyncio", specifier = "==1.0.0" },
     { name = "tenacity", specifier = "==9.1.2" },
@@ -1024,11 +1024,11 @@ wheels = [
 
 [[package]]
 name = "logfire-api"
-version = "3.22.0"
+version = "4.3.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/72/d2/4c68de2f855d0166f3f015c3f2caf2c1311a3ac37cd0ed12b2aa3f2ec77c/logfire_api-3.22.0.tar.gz", hash = "sha256:30a1bc8b67b6feaeef59f7ee01270f06748d26d0e797c3cadcd0e68455c650b5", size = 50454, upload-time = "2025-07-02T14:41:37.458Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/ba/1d1403cdd8501bcabc12d7f73bc4afe1c53f10c2300c1834ec529406f960/logfire_api-4.3.3.tar.gz", hash = "sha256:b566011a7a021e2d9e7349f00bcc98ab2995cabc7314d293d4c7e96745f4d670", size = 52823, upload-time = "2025-08-13T11:23:09.561Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/3f/fa20041785fc4bec64287a07f40327ed54bb367ac7159a9bdc7fcc88c83a/logfire_api-3.22.0-py3-none-any.whl", hash = "sha256:724f98463845fe893f1b7cbda486b4088593adc31ffb0c7076688d13f2d284ab", size = 84584, upload-time = "2025-07-02T14:41:34.232Z" },
+    { url = "https://files.pythonhosted.org/packages/01/ff/7818d758cb0d7041ff72e494e099a2072bdb2c12ad86528b67cb7ebe7412/logfire_api-4.3.3-py3-none-any.whl", hash = "sha256:462349c11ffb5de3d7554360d2a87842213c2894a3f1597822ad6428bf22850f", size = 88363, upload-time = "2025-08-13T11:23:07.328Z" },
 ]
 
 [[package]]
