@@ -1,8 +1,10 @@
 import asyncio
+from enum import StrEnum
 import json
 from typing import (
     Any,
     AsyncGenerator,
+    AsyncIterator,
     Dict,
     Generic,
     List,
@@ -12,6 +14,7 @@ from typing import (
     TypeVar,
 )
 
+from contextlib import asynccontextmanager
 import logfire_api as logfire
 from pydantic import BaseModel, Field
 
@@ -29,11 +32,21 @@ class TemplateReference(BaseModel):
     template_name: str
 
 
+class ErrorPolicy(StrEnum):
+    """The policy for handling errors."""
+
+    RAISE = "raise"
+    PASS = "pass"
+    SKIP = "skip"
+
+
 class WorkflowStep(BaseModel):
     """A step in a workflow."""
 
+    index: int = Field(default=0)
     workflow: "ChatWorkflow"
-    chats: List[Chat]
+    chat: Chat
+    message: Message
     previous: Optional["WorkflowStep"] = Field(default=None)
 
 
@@ -44,21 +57,121 @@ OnErrorAction = Literal["raise", "pass"]
 OutputType = TypeVar("OutputType", bound=BaseModel)
 
 
+class _StepRunner:
+    """Encapsulates per-run state and step execution.
+
+    Parameters
+    ----------
+    workflow : ChatWorkflow
+        The workflow instance.
+    params : GenerationParams
+        Generator parameters (including tools, response format).
+    init_chat : Chat
+        Initial chat (rendered messages + context).
+    """
+
+    def __init__(
+        self,
+        workflow: "ChatWorkflow",
+        params: GenerationParams,
+        init_chat: Chat,
+    ):
+        self._workflow = workflow
+        self._params = params
+        self._current_step: Optional[WorkflowStep] = None
+        self._current_step_num = 0
+        self._init_chat = init_chat
+
+    async def execute(
+        self, max_steps: int | None
+    ) -> AsyncGenerator[WorkflowStep, None]:
+        """Drive the workflow step-by-step.
+
+        Parameters
+        ----------
+        max_steps : int or None
+            Maximum number of steps to run.
+
+        Yields
+        ------
+        WorkflowStep
+            Steps produced by the workflow as it advances. One step correspond to a message added to the chat.
+        """
+        if max_steps is not None and max_steps <= 0:
+            return
+
+        chat = self._init_chat  # will be cloned for each step
+
+        step = None
+        while max_steps is None or (step is not None and step.index < max_steps):
+            # First, consume any pending tool calls on the current chat
+            async for tool_message in self._run_tools(chat):
+                chat = chat.clone().add(tool_message)
+                step = WorkflowStep(
+                    workflow=self._workflow,
+                    chat=chat,
+                    message=tool_message,
+                    previous=step,
+                    index=step.index + 1 if step is not None else 0,
+                )
+                yield step
+
+            # Now we run the generator to create a completion
+            message = await self._run_completion(chat)
+            chat = chat.clone().add(message)
+            step = WorkflowStep(
+                workflow=self._workflow,
+                chat=chat,
+                message=message,
+                previous=step,
+                index=step.index + 1 if step is not None else 0,
+            )
+            yield step
+
+            # If the last message has no tool calls, we're done.
+            if not message.tool_calls:
+                break
+
+    async def _run_tools(self, chat: Chat) -> AsyncGenerator[Message, None]:
+        if not chat.last or not chat.last.tool_calls:
+            return
+
+        for tool_call in chat.last.tool_calls:
+            tool = self._workflow.tools[tool_call.function.name]
+            tool_response = await tool.run(
+                json.loads(tool_call.function.arguments),
+                ctx=chat.context,
+            )
+            yield Message(
+                role="tool",
+                tool_call_id=tool_call.id,
+                content=json.dumps(tool_response),
+            )
+
+    async def _run_completion(self, chat: Chat) -> Message:
+        response = await self._workflow.generator.complete(chat.messages, self._params)
+        return response.message
+
+
 class ChatWorkflow(BaseModel, Generic[OutputType]):
     """A workflow for handling chat completions.
 
     Attributes
     ----------
-    messages : List[Message]
-        List of chat messages in the conversation.
-    model : str
-        The model identifier to use for completions.
-    tools : List[Any]
-        List of tools available to the workflow.
+    messages : list[Message | MessageTemplate | TemplateReference]
+        Conversation messages or templates to render.
+    tools : dict[str, Tool]
+        Tools available to the workflow by name.
     generator : BaseGenerator
         The generator instance to use for completions.
     prompt_manager : PromptsManager
         The prompt manager to use for rendering templates.
+    output_model : type[OutputType] or None
+        Optional Pydantic model used for response formatting.
+    context : RunContext
+        Execution context copied per run.
+    error_mode : Literal["raise", "pass"]
+        Error handling behavior.
     """
 
     generator: "BaseGenerator"
@@ -156,84 +269,40 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         self.error_mode = error_mode
         return self
 
-    async def _run_steps(self, max_steps: int | None = None) -> StepGenerator:
+    @asynccontextmanager
+    async def steps(self, max_steps: int | None = None) -> AsyncIterator[StepGenerator]:
+        """Create an async context for iterating workflow steps.
+
+        Parameters
+        ----------
+        max_steps : int or None
+            Maximum number of steps to run. If None, runs until completion.
+
+        Yields
+        ------
+        StepGenerator
+            An async generator producing `WorkflowStep` instances.
+        """
         params = GenerationParams(
             tools=list(self.tools.values()),
             response_format=self.output_model,
         )
-
         context = self.context.model_copy(deep=True)
         context.inputs = self.inputs.copy()
-
-        logfire.info(
-            "Starting workflow steps",
-            params=params,
-            context=context,
-            inputs=self.inputs,
-        )
-
-        current_step = None
-        current_step_num = 0
-        current_chat = Chat(
+        start_chat = Chat(
             messages=await self._render_messages(),
             output_model=self.output_model,
             context=context,
         )
 
-        while max_steps is None or current_step_num < max_steps:
-            logfire.info(
-                "Running generation",
-                current_chat=current_chat,
-            )
+        runner = _StepRunner(self, params, start_chat)
+        agen = runner.execute(max_steps)
+        try:
+            yield agen
+        finally:
+            await agen.aclose()
 
-            response = await self.generator.complete(current_chat.messages, params)
-
-            current_step_num += 1
-            current_chat = Chat(
-                messages=current_chat.messages + [response.message],
-                output_model=self.output_model,
-                context=current_chat.context,
-            )
-
-            current_step = WorkflowStep(
-                workflow=self,
-                chats=[current_chat],
-                previous=current_step,
-            )
-
-            logfire.info(
-                "Step completed",
-                transcript=current_chat.transcript,
-                step_num=current_step_num,
-                step=current_step,
-            )
-            yield current_step
-
-            # If the last message is a tool call, we will run the tools and add
-            # the results to the chat.
-            if current_chat.last.tool_calls:
-                tool_messages = []
-                for tool_call in current_chat.last.tool_calls:
-                    tool = self.tools[tool_call.function.name]
-                    tool_response = await tool.run(
-                        json.loads(tool_call.function.arguments),
-                        ctx=current_step.chats[0].context,
-                    )
-                    tool_messages.append(
-                        Message(
-                            role="tool",
-                            tool_call_id=tool_call.id,
-                            content=json.dumps(tool_response),
-                        )
-                    )
-                current_chat = Chat(
-                    messages=current_chat.messages + tool_messages,
-                    output_model=self.output_model,
-                    context=current_chat.context,
-                )
-            else:
-                # All done, no tool calls, we stop here.
-                return
+    # _run_steps removed; use steps() for iteration and run() for completion
 
     @logfire.instrument("chat_workflow.run")
     async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
@@ -249,13 +318,14 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         Chat[OutputType]
             A Chat object containing the conversation messages.
         """
-        step = None
+        last_step: Optional[WorkflowStep] = None
 
-        async for step in self._run_steps(max_steps):
-            pass
+        async with self.steps(max_steps=max_steps) as steps:
+            async for step in steps:
+                last_step = step
 
-        if step is not None:
-            return step.chats[0]
+        if last_step is not None:
+            return last_step.chat
 
         raise WorkflowError("ChatWorkflow step failed.")
 

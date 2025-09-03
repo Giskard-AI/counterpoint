@@ -84,3 +84,10 @@ class Chat(BaseModel, Generic[OutputType]):
         if self.output_model is None:
             raise ValueError("Output model not set")
         return self.last.parse(self.output_model)
+
+    def clone(self, deep: bool = True) -> "Chat":
+        return self.model_copy(deep=deep)
+
+    def add(self, message: Message) -> "Chat":
+        self.messages.append(message)
+        return self
