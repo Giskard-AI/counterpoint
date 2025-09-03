@@ -6,7 +6,7 @@ from counterpoint.chat import Message
 from counterpoint.context import RunContext
 from counterpoint.generators import BaseGenerator
 from counterpoint.generators.base import Response
-from counterpoint.pipeline import Pipeline
+from counterpoint.workflow import ChatWorkflow
 from counterpoint.tools import Function, ToolCall, tool
 
 
@@ -85,7 +85,7 @@ async def test_pipeline_calls_context():
     )
 
     pipeline = (
-        Pipeline(generator=generator)
+        ChatWorkflow(generator=generator)
         .with_inputs(name="TestBot")
         .with_tools(count_tool)
         .chat("Increment the count by 1")

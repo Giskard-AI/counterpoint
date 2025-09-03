@@ -9,7 +9,7 @@ from counterpoint.templates.prompts_manager import PromptsManager
 
 
 async def test_single_run(generator):
-    pipeline = cp.Pipeline(generator=generator)
+    pipeline = cp.ChatWorkflow(generator=generator)
 
     chat = await (
         pipeline.chat("Your name is TestBot.", role="system")
@@ -23,7 +23,7 @@ async def test_single_run(generator):
 async def test_run_many(generator):
     """Test that the pipeline runs correctly."""
 
-    pipeline = cp.Pipeline(generator=generator)
+    pipeline = cp.ChatWorkflow(generator=generator)
 
     chats = await pipeline.chat("Hello!", role="user").run_many(n=3)
 
@@ -33,7 +33,7 @@ async def test_run_many(generator):
 async def test_run_batch(generator):
     """Test that the pipeline runs correctly."""
 
-    pipeline = cp.Pipeline(generator=generator)
+    pipeline = cp.ChatWorkflow(generator=generator)
 
     chats = await pipeline.chat("Hello {{ n }}!", role="user").run_batch(
         inputs=[{"n": i} for i in range(3)]
@@ -51,7 +51,7 @@ async def test_run_batch(generator):
 
 
 async def test_stream_many(generator):
-    pipeline = cp.Pipeline(generator=generator).chat("Hello!", role="user")
+    pipeline = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
 
     chats = []
     async for chat in pipeline.stream_many(3):
@@ -62,7 +62,7 @@ async def test_stream_many(generator):
 
 
 async def test_stream_batch(generator):
-    pipeline = cp.Pipeline(generator=generator).chat("Hello!", role="user")
+    pipeline = cp.ChatWorkflow(generator=generator).chat("Hello!", role="user")
 
     chats = []
     async for chat in pipeline.stream_batch(
@@ -78,7 +78,7 @@ async def test_stream_batch(generator):
 
 
 async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
-    pipeline = cp.Pipeline(
+    pipeline = cp.ChatWorkflow(
         generator=generator,
         prompt_manager=PromptsManager(
             prompts_path=Path(__file__).parent / "data" / "prompts"
@@ -120,7 +120,7 @@ async def test_pipeline_with_mixed_templates(generator: LiteLLMGenerator):
 
 
 async def test_output_format(generator):
-    pipeline = cp.Pipeline(generator=generator)
+    pipeline = cp.ChatWorkflow(generator=generator)
 
     class SimpleOutput(BaseModel):
         mood: str
