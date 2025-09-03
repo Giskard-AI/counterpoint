@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
+from counterpoint.errors.workflow_errors import WorkflowError
 from counterpoint.generators import BaseGenerator, GenerationParams
 from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
 from counterpoint.tools.tool import Tool
@@ -53,7 +54,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     model : str
         The model identifier to use for completions.
     tools : List[Any]
-        List of tools available to the pipeline.
+        List of tools available to the workflow.
     generator : BaseGenerator
         The generator instance to use for completions.
     prompt_manager : PromptsManager
@@ -73,7 +74,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     error_mode: OnErrorAction = Field(default="raise")
 
     def chat(self, message: str | Message, role: Role = "user") -> "ChatWorkflow":
-        """Add a chat message to the pipeline."""
+        """Add a chat message to the workflow."""
         if isinstance(message, str):
             message = MessageTemplate(role=role, content_template=message)
         self.messages.append(message)
@@ -89,69 +90,69 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
         Returns
         -------
-        Pipeline
-            The pipeline instance for method chaining.
+        ChatWorkflow
+            The workflow instance for method chaining.
         """
         template_message = TemplateReference(template_name=template_name)
         self.messages.append(template_message)
         return self
 
     def with_tools(self, *tools: Tool):
-        """Add tools to the pipeline.
+        """Add tools to the workflow.
 
         Parameters
         ----------
         *tools : Tool
-            Tools to add to the pipeline.
+            Tools to add to the workflow.
 
         Returns
         -------
-        Pipeline
-            The pipeline instance for method chaining.
+        ChatWorkflow
+            The workflow instance for method chaining.
         """
         for tool in tools:
             self.tools[tool.name] = tool
         return self
 
     def with_output(self, output_model: Type[OutputType]) -> "ChatWorkflow[OutputType]":
-        """Set the output model for the pipeline.
+        """Set the output model for the workflow.
 
         Parameters
         ----------
         output_model : Type[OutputType]
-            The output model to use for the pipeline.
+            The output model to use for the workflow.
 
         Returns
         -------
-        Pipeline
-            The pipeline instance for method chaining.
+        ChatWorkflow
+            The workflow instance for method chaining.
         """
         self.output_model = output_model
         return self
 
     def with_inputs(self, **kwargs: Any) -> "ChatWorkflow":
-        """Set the input for the pipeline.
+        """Set the input for the workflow.
 
         Parameters
         ----------
         **kwargs : Any
-            The input for the pipeline.
+            The input for the workflow.
 
         Returns
         -------
-        Pipeline
-            The pipeline instance for method chaining.
+        ChatWorkflow
+            The workflow instance for method chaining.
         """
         self.inputs.update(kwargs)
         return self
 
     def with_context(self, context: RunContext) -> "ChatWorkflow":
-        """Set the context for the pipeline."""
+        """Set the context for the workflow."""
         self.context = context
         return self
 
     def on_error(self, error_mode: OnErrorAction) -> "ChatWorkflow":
-        """Set the error handling behavior for the pipeline."""
+        """Set the error handling behavior for the workflow."""
         self.error_mode = error_mode
         return self
 
@@ -165,7 +166,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         context.inputs = self.inputs.copy()
 
         logfire.info(
-            "Starting pipeline steps",
+            "Starting workflow steps",
             params=params,
             context=context,
             inputs=self.inputs,
@@ -234,14 +235,14 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
                 # All done, no tool calls, we stop here.
                 return
 
-    @logfire.instrument("pipeline.run")
+    @logfire.instrument("chat_workflow.run")
     async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
-        """Runs the pipeline.
+        """Runs the workflow.
 
         Parameters
         ----------
         max_steps : int, optional
-            The number of steps to run. If not provided, the pipeline will run until the chat is complete.
+            The number of steps to run. If not provided, the workflow will run until the chat is complete.
 
         Returns
         -------
@@ -256,9 +257,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         if step is not None:
             return step.chats[0]
 
-        raise RuntimeError("Pipeline step failed.")
+        raise WorkflowError("ChatWorkflow step failed.")
 
-    @logfire.instrument("pipeline.run_many")
+    @logfire.instrument("chat_workflow.run_many")
     async def run_many(self, n: int, max_steps: int | None = None):
         """Run multiple completions in parallel.
 
@@ -279,7 +280,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             return_exceptions=self.error_mode != "raise",
         )
 
-    @logfire.instrument("pipeline.run_batch")
+    @logfire.instrument("chat_workflow.run_batch")
     async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Run a batch of completions with different parameters.
 
@@ -295,13 +296,13 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         List[Any]
             List of completion results.
         """
-        pipelines = [
+        workflows = [
             self.model_copy(update={"inputs": {**self.inputs, **params}})
             for params in inputs
         ]
 
         return await asyncio.gather(
-            *[pipeline.run(max_steps=max_steps) for pipeline in pipelines],
+            *[workflow.run(max_steps=max_steps) for workflow in workflows],
             return_exceptions=self.error_mode != "raise",
         )
 
@@ -346,11 +347,11 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         Chat
             Chat objects as they complete.
         """
-        pipelines = [
+        workflows = [
             self.model_copy(update={"inputs": {**self.inputs, **params}})
             for params in inputs
         ]
-        tasks = [pipeline.run(max_steps=max_steps) for pipeline in pipelines]
+        tasks = [workflow.run(max_steps=max_steps) for workflow in workflows]
 
         for coro in asyncio.as_completed(tasks):
             try:
