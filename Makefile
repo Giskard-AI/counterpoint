@@ -53,7 +53,7 @@ pre-commit-run: ## Run pre-commit on all files
 	pre-commit run --all-files
 
 # Combined targets
-check: lint check-format check-compat security ## Run all checks (lint, format, compatibility, security)
+check: lint check-format check-compat security check-licenses ## Run all checks (lint, format, compatibility, security)
 
 all: format check test ## Format, check, and test
 
