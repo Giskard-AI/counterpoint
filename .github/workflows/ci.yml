@@ -28,6 +28,9 @@ jobs:
       - name: Run all checks
         run: make check
 
+      - name: Check 3rd party licenses
+        run: make check-licenses
+
 
   test:
     runs-on: ubuntu-latest

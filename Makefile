@@ -1,4 +1,4 @@
-.PHONY: help install install-tools sync test lint check-compat security format clean all pre-commit-install pre-commit-run
+.PHONY: help install install-tools sync test lint check-compat security format clean all pre-commit-install pre-commit-run generate-licenses check-licenses
 
 # Default target
 help: ## Show this help message
@@ -13,6 +13,7 @@ install-tools: ## Install development tools
 	uv tool install ruff
 	uv tool install vermin
 	uv tool install pre-commit --with pre-commit-uv
+	uv tool install licensecheck
 
 sync: install ## Alias for install
 
@@ -36,6 +37,13 @@ check-compat: ## Check Python 3.10 compatibility
 
 security: ## Check for security vulnerabilities
 	uv run pip-audit .
+
+generate-licenses: ## Generate licenses
+	uv tool run licensecheck --license MIT \
+		--format markdown --file THIRD_PARTY_NOTICES.md
+
+check-licenses: ## Check for licenses
+	uv tool run licensecheck --license MIT --show-only-failing --zero
 
 # Pre-commit targets
 pre-commit-install: ## Install pre-commit hooks
