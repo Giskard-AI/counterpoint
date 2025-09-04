@@ -162,8 +162,9 @@ class Tool(BaseModel):
                 res = await res
         except Exception as error:
             if self.catch is not None:
-                return self.catch(error)
-            raise
+                res = self.catch(error)
+            else:
+                raise
 
         if isinstance(res, BaseModel):
             res = res.model_dump()
