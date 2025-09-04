@@ -31,8 +31,8 @@ format: ## Format code with ruff
 check-format: ## Check if code is formatted correctly
 	uv tool run ruff format --check .
 
-check-compat: ## Check Python 3.10 compatibility
-	uv tool run vermin --target=3.10- --no-tips --violations .
+check-compat: ## Check Python 3.11 compatibility
+	uv tool run vermin --target=3.11- --no-tips --violations .
 
 security: ## Check for security vulnerabilities
 	uv run pip-audit .
