@@ -77,8 +77,6 @@ class _StepRunner:
     ):
         self._workflow = workflow
         self._params = params
-        self._current_step: Optional[WorkflowStep] = None
-        self._current_step_num = 0
         self._init_chat = init_chat
 
     async def execute(
@@ -362,7 +360,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
     async def _handle_error(
         self, err: Exception, last_step: Optional[WorkflowStep] = None
-    ) -> Chat | None:
+    ) -> Chat:
         # Raise an error if the error mode is RAISE.
         if self.error_policy == ErrorPolicy.RAISE:
             raise WorkflowError(
