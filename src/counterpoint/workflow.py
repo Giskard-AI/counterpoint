@@ -102,7 +102,7 @@ class _StepRunner:
         chat = self._init_chat  # will be cloned for each step
 
         step = None
-        while max_steps is None or (step is not None and step.index < max_steps):
+        while max_steps is None or (step is None or step.index < max_steps):
             # First, consume any pending tool calls on the current chat
             async for tool_message in self._run_tools(chat):
                 chat = chat.clone().add(tool_message)
