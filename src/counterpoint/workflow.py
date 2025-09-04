@@ -473,7 +473,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
             yield result
 
-    async def stream_batch(self, inputs: list[dict], max_steps: int | None = None):
+    async def stream_batch(self, inputs: list[dict], max_steps: int | None = None) -> AsyncIterator[Chat[OutputType]]:
         """Stream a batch of completions as they complete.
 
         Parameters
