@@ -241,7 +241,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             self.tools[tool.name] = tool
         return self
 
-    def with_output(self: "ChatWorkflow[Any]", output_model: Type[NewOutputType]) -> "ChatWorkflow[NewOutputType]":
+    def with_output(
+        self: "ChatWorkflow[Any]", output_model: Type[NewOutputType]
+    ) -> "ChatWorkflow[NewOutputType]":
         """Set the output model for the workflow.
 
         Parameters
@@ -310,7 +312,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         finally:
             await agen.aclose()
 
-    async def _init_chat(self) -> Chat:
+    async def _init_chat(self) -> Chat[OutputType]:
         context = self.context.model_copy(deep=True)
         context.inputs = self.inputs.copy()
         return Chat(
@@ -356,7 +358,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
     async def _handle_error(
         self, err: Exception, last_step: Optional[WorkflowStep] = None
-    ) -> Chat:
+    ) -> Chat[OutputType]:
         # Raise an error if the error mode is RAISE.
         if self.error_policy == ErrorPolicy.RAISE:
             raise WorkflowError(
@@ -413,7 +415,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     @logfire.instrument("chat_workflow.run_batch")
     async def run_batch(
         self, inputs: list[dict], max_steps: int | None = None
-    ) -> List[Chat]:
+    ) -> List[Chat[OutputType]]:
         """Run a batch of completions with different parameters.
 
         Parameters
@@ -443,7 +445,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
         return chats
 
-    async def stream_many(self, n: int, max_steps: int | None = None):
+    async def stream_many(
+        self, n: int, max_steps: int | None = None
+    ) -> AsyncIterator[Chat[OutputType]]:
         """Stream multiple completions as they complete.
 
         Parameters
