@@ -299,7 +299,7 @@ You can change this behavior by passing the `catch=None` on the tool decorator. 
 def get_weather(city: str) -> str:
     raise ValueError("City not found")
 
-result = await get_weather("Paris")
+result = await get_weather.run(arguments={"city": "Paris"})
 print(result) # "ERROR: City not found"
 
 
