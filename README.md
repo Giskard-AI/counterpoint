@@ -309,7 +309,7 @@ def get_weather(city: str) -> str:
     raise ValueError("City not found")
 
 # This will raise an exception
-result = await get_weather("Paris")
+result = await get_weather.run(arguments={"city": "Paris"})
 ```
 
 ## Development
