@@ -278,10 +278,10 @@ You can choose to:
 
 ```python
 # This may return less than 3 chats if some fail.
-chats = await workflow.chat("Hello!", role="user").on_error(ErrorPolicy.SKIP).run_many(n=3)
+chats = await generator.chat("Hello!", role="user").on_error(ErrorPolicy.SKIP).run_many(n=3)
 
 # This will return 3 chats, some may be in failed state.
-chats = await workflow.chat("Hello!", role="user").on_error(ErrorPolicy.RETURN).run_many(n=3)
+chats = await generator.chat("Hello!", role="user").on_error(ErrorPolicy.RETURN).run_many(n=3)
 
 for chat in chats:
     if chat.failed:
