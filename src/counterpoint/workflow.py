@@ -394,7 +394,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         return results
 
     @logfire.instrument("chat_workflow.run_batch")
-    async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
+    async def run_batch(
+        self, inputs: list[dict], max_steps: int | None = None
+    ) -> List[Chat]:
         """Run a batch of completions with different parameters.
 
         Parameters
@@ -406,7 +408,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
         Returns
         -------
-        List[Any]
+        List[Chat]
             List of completion results.
         """
         workflows = [
@@ -414,19 +416,15 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             for params in inputs
         ]
 
-        if self.error_policy == ErrorPolicy.RAISE:
-            return await asyncio.gather(
-                *[workflow.run(max_steps=max_steps) for workflow in workflows],
-                return_exceptions=False,
-            )
-
-        results = await asyncio.gather(
+        chats = await asyncio.gather(
             *[workflow.run(max_steps=max_steps) for workflow in workflows],
             return_exceptions=False,
         )
+
         if self.error_policy == ErrorPolicy.SKIP:
-            return [chat for chat in results if not chat.failed]
-        return results
+            chats = [chat for chat in chats if not chat.failed]
+
+        return chats
 
     async def stream_many(self, n: int, max_steps: int | None = None):
         """Stream multiple completions as they complete.
@@ -446,18 +444,13 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         tasks = [self.run(max_steps=max_steps) for _ in range(n)]
 
         for coro in asyncio.as_completed(tasks):
-            try:
-                result = await coro
-                if result.failed and self.error_policy == ErrorPolicy.SKIP:
-                    continue
-                yield result
-            except Exception:
-                # With current run() behavior, exceptions should be converted already
-                # Keeping this for extra safety
-                if self.error_policy == ErrorPolicy.RAISE:
-                    raise
-                if self.error_policy == ErrorPolicy.SKIP:
-                    continue
+            result = await coro
+
+            # Skip failed chats if the error policy is SKIP
+            if result.failed and self.error_policy == ErrorPolicy.SKIP:
+                continue
+
+            yield result
 
     async def stream_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Stream a batch of completions as they complete.
@@ -481,16 +474,13 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         tasks = [workflow.run(max_steps=max_steps) for workflow in workflows]
 
         for coro in asyncio.as_completed(tasks):
-            try:
-                result = await coro
-                if result.failed and self.error_policy == ErrorPolicy.SKIP:
-                    continue
-                yield result
-            except Exception:
-                if self.error_policy == ErrorPolicy.RAISE:
-                    raise
-                if self.error_policy == ErrorPolicy.SKIP:
-                    continue
+            result = await coro
+
+            # Skip failed chats if the error policy is SKIP
+            if result.failed and self.error_policy == ErrorPolicy.SKIP:
+                continue
+
+            yield result
 
     async def _render_messages(self) -> List[Message]:
         rendered_messages = []
