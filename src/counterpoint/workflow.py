@@ -105,27 +105,48 @@ class _StepRunner:
         while max_steps is None or (step is None or step.index < max_steps):
             # First, consume any pending tool calls on the current chat
             async for tool_message in self._run_tools(chat):
-                chat = chat.clone().add(tool_message)
+                with logfire.span(
+                    "chat_workflow.step",
+                    attributes={
+                        "kind": "tool",
+                        "tool_name": tool_message.tool_call_id,
+                    },
+                ):
+                    chat = chat.clone().add(tool_message)
+                    step = WorkflowStep(
+                        workflow=self._workflow,
+                        chat=chat,
+                        message=tool_message,
+                        previous=step,
+                        index=step.index + 1 if step is not None else 0,
+                    )
+                    logfire.info(
+                        "step.completed",
+                        {"step_index": step.index, "message": step.message},
+                    )
+                    yield step
+
+            # Now we run the generator to create a completion
+            with logfire.span(
+                "chat_workflow.step",
+                attributes={
+                    "kind": "completion",
+                },
+            ):
+                message = await self._run_completion(chat)
+                chat = chat.clone().add(message)
                 step = WorkflowStep(
                     workflow=self._workflow,
                     chat=chat,
-                    message=tool_message,
+                    message=message,
                     previous=step,
                     index=step.index + 1 if step is not None else 0,
                 )
+                logfire.info(
+                    "step.completed",
+                    {"step_index": step.index, "message": step.message},
+                )
                 yield step
-
-            # Now we run the generator to create a completion
-            message = await self._run_completion(chat)
-            chat = chat.clone().add(message)
-            step = WorkflowStep(
-                workflow=self._workflow,
-                chat=chat,
-                message=message,
-                previous=step,
-                index=step.index + 1 if step is not None else 0,
-            )
-            yield step
 
             # If the last message has no tool calls, we're done.
             if not message.tool_calls:
