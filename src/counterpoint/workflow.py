@@ -8,7 +8,6 @@ from typing import (
     Dict,
     Generic,
     List,
-    Literal,
     Optional,
     Type,
     TypeVar,
@@ -20,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
+from counterpoint.errors.serializable import Error
 from counterpoint.errors.workflow_errors import WorkflowError
 from counterpoint.generators import BaseGenerator, GenerationParams
 from counterpoint.templates import MessageTemplate, PromptsManager, get_prompts_manager
@@ -36,7 +36,7 @@ class ErrorPolicy(StrEnum):
     """The policy for handling errors."""
 
     RAISE = "raise"
-    PASS = "pass"
+    RETURN = "return"
     SKIP = "skip"
 
 
@@ -51,7 +51,6 @@ class WorkflowStep(BaseModel):
 
 
 StepGenerator = AsyncGenerator[WorkflowStep, None]
-OnErrorAction = Literal["raise", "pass"]
 
 
 OutputType = TypeVar("OutputType", bound=BaseModel)
@@ -184,7 +183,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     output_model: Type[OutputType] | None = Field(default=None)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
-    error_mode: OnErrorAction = Field(default="raise")
+    error_policy: ErrorPolicy = Field(default=ErrorPolicy.RAISE)
 
     def chat(self, message: str | Message, role: Role = "user") -> "ChatWorkflow":
         """Add a chat message to the workflow."""
@@ -264,9 +263,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         self.context = context
         return self
 
-    def on_error(self, error_mode: OnErrorAction) -> "ChatWorkflow":
+    def on_error(self, error_policy: ErrorPolicy) -> "ChatWorkflow":
         """Set the error handling behavior for the workflow."""
-        self.error_mode = error_mode
+        self.error_policy = error_policy
         return self
 
     @asynccontextmanager
@@ -287,22 +286,23 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             tools=list(self.tools.values()),
             response_format=self.output_model,
         )
-        context = self.context.model_copy(deep=True)
-        context.inputs = self.inputs.copy()
-        start_chat = Chat(
-            messages=await self._render_messages(),
-            output_model=self.output_model,
-            context=context,
-        )
+        init_chat = await self._init_chat()
 
-        runner = _StepRunner(self, params, start_chat)
+        runner = _StepRunner(self, params, init_chat)
         agen = runner.execute(max_steps)
         try:
             yield agen
         finally:
             await agen.aclose()
 
-    # _run_steps removed; use steps() for iteration and run() for completion
+    async def _init_chat(self) -> Chat:
+        context = self.context.model_copy(deep=True)
+        context.inputs = self.inputs.copy()
+        return Chat(
+            messages=await self._render_messages(),
+            output_model=self.output_model,
+            context=context,
+        )
 
     @logfire.instrument("chat_workflow.run")
     async def run(self, max_steps: int | None = None) -> Chat[OutputType]:
@@ -317,17 +317,49 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         -------
         Chat[OutputType]
             A Chat object containing the conversation messages.
+
+        Raises
+        ------
+        WorkflowError
+            If the workflow fails and the error policy is RAISE (default).
         """
         last_step: Optional[WorkflowStep] = None
 
-        async with self.steps(max_steps=max_steps) as steps:
-            async for step in steps:
-                last_step = step
+        try:
+            # Run the steps, and store the last step.
+            async with self.steps(max_steps=max_steps) as steps:
+                async for step in steps:
+                    last_step = step
 
-        if last_step is not None:
-            return last_step.chat
+            if last_step is not None:
+                return last_step.chat
 
-        raise WorkflowError("ChatWorkflow step failed.")
+            raise WorkflowError("ChatWorkflow failed: no steps were executed.")
+
+        except Exception as err:
+            return await self._handle_error(err, last_step)
+
+    async def _handle_error(
+        self, err: Exception, last_step: Optional[WorkflowStep] = None
+    ) -> Chat | None:
+        # Raise an error if the error mode is RAISE.
+        if self.error_policy == ErrorPolicy.RAISE:
+            raise WorkflowError(
+                "Step processing failed",
+                last_step=last_step,
+                exception=err,
+            ) from err
+
+        # Otherwise return partial chat with error.
+        if last_step and last_step.chat is not None:
+            chat = last_step.chat.clone()
+        else:
+            chat = await self._init_chat()
+
+        # Set the error on the chat, this will make it "failed".
+        chat.error = Error(message=str(err))
+
+        return chat
 
     @logfire.instrument("chat_workflow.run_many")
     async def run_many(self, n: int, max_steps: int | None = None):
@@ -344,11 +376,22 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         -------
         List[Chat]
             List of Chat objects containing the conversation messages.
+
+        Raises
+        ------
+        WorkflowError
+            If the workflow fails and the error policy is RAISE (default).
         """
-        return await asyncio.gather(
+        results = await asyncio.gather(
             *[self.run(max_steps=max_steps) for _ in range(n)],
-            return_exceptions=self.error_mode != "raise",
+            return_exceptions=False,
         )
+
+        # If the error mode is SKIP, we return only the successful chats.
+        if self.error_policy == ErrorPolicy.SKIP:
+            results = [chat for chat in results if not chat.failed]
+
+        return results
 
     @logfire.instrument("chat_workflow.run_batch")
     async def run_batch(self, inputs: list[dict], max_steps: int | None = None):
@@ -371,10 +414,19 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             for params in inputs
         ]
 
-        return await asyncio.gather(
+        if self.error_policy == ErrorPolicy.RAISE:
+            return await asyncio.gather(
+                *[workflow.run(max_steps=max_steps) for workflow in workflows],
+                return_exceptions=False,
+            )
+
+        results = await asyncio.gather(
             *[workflow.run(max_steps=max_steps) for workflow in workflows],
-            return_exceptions=self.error_mode != "raise",
+            return_exceptions=False,
         )
+        if self.error_policy == ErrorPolicy.SKIP:
+            return [chat for chat in results if not chat.failed]
+        return results
 
     async def stream_many(self, n: int, max_steps: int | None = None):
         """Stream multiple completions as they complete.
@@ -396,11 +448,16 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         for coro in asyncio.as_completed(tasks):
             try:
                 result = await coro
+                if result.failed and self.error_policy == ErrorPolicy.SKIP:
+                    continue
                 yield result
-            except Exception as e:
-                if self.error_mode == "raise":
+            except Exception:
+                # With current run() behavior, exceptions should be converted already
+                # Keeping this for extra safety
+                if self.error_policy == ErrorPolicy.RAISE:
                     raise
-                yield e
+                if self.error_policy == ErrorPolicy.SKIP:
+                    continue
 
     async def stream_batch(self, inputs: list[dict], max_steps: int | None = None):
         """Stream a batch of completions as they complete.
@@ -426,11 +483,14 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         for coro in asyncio.as_completed(tasks):
             try:
                 result = await coro
+                if result.failed and self.error_policy == ErrorPolicy.SKIP:
+                    continue
                 yield result
-            except Exception as e:
-                if self.error_mode == "raise":
+            except Exception:
+                if self.error_policy == ErrorPolicy.RAISE:
                     raise
-                yield e
+                if self.error_policy == ErrorPolicy.SKIP:
+                    continue
 
     async def _render_messages(self) -> List[Message]:
         rendered_messages = []
