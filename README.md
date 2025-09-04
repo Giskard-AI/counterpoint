@@ -357,13 +357,13 @@ make clean         # Clean build artifacts
 
 ### Python Compatibility
 
-This project maintains compatibility with Python 3.10+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
+This project maintains compatibility with Python 3.11+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
 
 ```bash
-# Check Python 3.10 compatibility
+# Check Python 3.11 compatibility
 make check-compat
 # or manually:
-uv tool run vermin --target=3.10- --no-tips --violations .
+uv tool run vermin --target=3.11- --no-tips --violations .
 ```
 
 #### Setting up Pre-commit Hooks
