@@ -295,7 +295,7 @@ You can change this behavior by passing the `catch=None` on the tool decorator. 
 
 ```python
 # Default behavior, will catch errors
-@cp.tool()
+@cp.tool
 def get_weather(city: str) -> str:
     raise ValueError("City not found")
 
