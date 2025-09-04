@@ -18,7 +18,3 @@ class WorkflowError(RuntimeError):
         super().__init__(message)
         self.exception = exception
         self.last_step = last_step
-
-
-class ToolCallError(WorkflowError):
-    """An error that occurs during a tool call."""

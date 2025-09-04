@@ -1,3 +1,4 @@
-from .workflow_errors import WorkflowError, ToolCallError
+from .workflow_errors import WorkflowError
+from .serializable import Error
 
-__all__ = ["WorkflowError", "ToolCallError"]
+__all__ = ["WorkflowError", "Error"]
