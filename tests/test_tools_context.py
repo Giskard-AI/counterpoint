@@ -91,7 +91,8 @@ async def test_pipeline_calls_context():
         .chat("Increment the count by 1")
     )
 
-    chat = await pipeline.run(max_steps=1)
+    # First step will generate the tool_call request, second step will call the tool and return the result.
+    chat = await pipeline.run(max_steps=2)
 
     assert chat.context.get("call_count") == 1
     assert chat.context.inputs["name"] == "TestBot"

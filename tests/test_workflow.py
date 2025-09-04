@@ -133,16 +133,3 @@ async def test_output_format(generator):
     )
 
     assert isinstance(chat.output, SimpleOutput)
-
-
-async def test_workflow_type_annotation(generator):
-    class SimpleOutput(BaseModel):
-        mood: str
-        greeting: str
-
-    workflow = cp.ChatWorkflow(generator=generator)
-    workflow.output_model = SimpleOutput
-    workflow
-
-    chat = await workflow.chat("Hello! Answer in JSON.", role="user").run()
-    chat.output

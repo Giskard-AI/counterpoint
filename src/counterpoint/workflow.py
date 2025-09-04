@@ -100,10 +100,14 @@ class _StepRunner:
         if max_steps is not None and max_steps <= 0:
             return
 
+        if max_steps is None:
+            max_steps = float("inf")
+
         chat = self._init_chat  # will be cloned for each step
 
         step = None
-        while max_steps is None or (step is None or step.index < max_steps):
+        step_index = 0
+        while step_index < max_steps:
             # First, consume any pending tool calls on the current chat
             async for tool_message in self._run_tools(chat):
                 chat = chat.clone().add(tool_message)
@@ -112,7 +116,7 @@ class _StepRunner:
                     chat=chat,
                     message=tool_message,
                     previous=step,
-                    index=step.index + 1 if step is not None else 0,
+                    index=step_index,
                 )
                 logfire.info(
                     "step.completed",
@@ -120,7 +124,9 @@ class _StepRunner:
                     message=step.message,
                 )
                 yield step
-                if max_steps is not None and step.index >= max_steps:
+
+                step_index += 1
+                if step_index >= max_steps:
                     break
 
             # Now we run the generator to create a completion
@@ -131,7 +137,7 @@ class _StepRunner:
                 chat=chat,
                 message=message,
                 previous=step,
-                index=step.index + 1 if step is not None else 0,
+                index=step_index,
             )
             logfire.info(
                 "step.completed",
@@ -139,7 +145,8 @@ class _StepRunner:
                 message=step.message,
             )
             yield step
-            if max_steps is not None and step.index >= max_steps:
+            step_index += 1
+            if step_index >= max_steps:
                 break
 
             # If the last message has no tool calls, we're done.
