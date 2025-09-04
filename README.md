@@ -276,6 +276,8 @@ You can choose to:
 - Return the chat with the error (`ErrorPolicy.RETURN`). The chat will have a `failed` attribute set to `True`, and an `error` attribute with a serializable error message.
 - For multi-run methods (e.g. `run_many` or `run_batch`), you can discard the failed chats (`ErrorPolicy.SKIP`). You will then only get the successful chats (potentially an empty list).
 
+Note: when running a single chat (`workflow.run(...)`), error policy is `SKIP` will behave as `RETURN`, returning `Chat` object with the error.
+
 ```python
 # This may return less than 3 chats if some fail.
 chats = await generator.chat("Hello!", role="user").on_error(ErrorPolicy.SKIP).run_many(n=3)
