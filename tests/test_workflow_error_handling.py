@@ -116,7 +116,6 @@ async def test_run_many_skips_error(generator):
     assert chats[0].last.content == "Test response 1"
 
 
-
 async def test_run_batch_raises_error(generator):
     workflow = cp.ChatWorkflow(generator=FailingGenerator(fail_after=0))
 
@@ -182,7 +181,9 @@ async def test_stream_many_returns_chat_with_error(generator):
 
     results = []
     async for chat in (
-        workflow.chat("Hello!", role="user").on_error(ErrorPolicy.RETURN).stream_many(n=3)
+        workflow.chat("Hello!", role="user")
+        .on_error(ErrorPolicy.RETURN)
+        .stream_many(n=3)
     ):
         results.append(chat)
 
@@ -226,7 +227,9 @@ async def test_stream_batch_raises_error(generator):
     workflow = cp.ChatWorkflow(generator=FailingGenerator(fail_after=1))
 
     with pytest.raises(WorkflowError):
-        async for _ in workflow.chat("Hello!", role="user").stream_batch(inputs=[{}, {}, {}]):
+        async for _ in workflow.chat("Hello!", role="user").stream_batch(
+            inputs=[{}, {}, {}]
+        ):
             pass
 
 
@@ -266,7 +269,9 @@ async def test_stream_batch_skips_error(generator):
 
     results = []
     async for chat in (
-        workflow.chat("Hello!", role="user").on_error(ErrorPolicy.SKIP).stream_batch(inputs=[{}, {}, {}])
+        workflow.chat("Hello!", role="user")
+        .on_error(ErrorPolicy.SKIP)
+        .stream_batch(inputs=[{}, {}, {}])
     ):
         results.append(chat)
 
@@ -275,4 +280,3 @@ async def test_stream_batch_skips_error(generator):
     assert len(results[0].messages) == 2
     assert results[0].last.role == "assistant"
     assert results[0].last.content == "Test response 1"
-
