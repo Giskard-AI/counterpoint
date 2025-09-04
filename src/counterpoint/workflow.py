@@ -11,6 +11,8 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Self,
+    cast,
 )
 
 from contextlib import asynccontextmanager
@@ -54,6 +56,7 @@ StepGenerator = AsyncGenerator[WorkflowStep, None]
 
 
 OutputType = TypeVar("OutputType", bound=BaseModel)
+NewOutputType = TypeVar("NewOutputType", bound=BaseModel)
 
 
 class _StepRunner:
@@ -197,14 +200,14 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     context: RunContext = Field(default_factory=RunContext)
     error_policy: ErrorPolicy = Field(default=ErrorPolicy.RAISE)
 
-    def chat(self, message: str | Message, role: Role = "user") -> "ChatWorkflow":
+    def chat(self, message: str | Message, role: Role = "user") -> Self:
         """Add a chat message to the workflow."""
         if isinstance(message, str):
             message = MessageTemplate(role=role, content_template=message)
         self.messages.append(message)
         return self
 
-    def template(self, template_name: str) -> "ChatWorkflow":
+    def template(self, template_name: str) -> Self:
         """Load messages from a template file.
 
         Parameters
@@ -221,7 +224,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         self.messages.append(template_message)
         return self
 
-    def with_tools(self, *tools: Tool):
+    def with_tools(self, *tools: Tool) -> Self:
         """Add tools to the workflow.
 
         Parameters
@@ -238,7 +241,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             self.tools[tool.name] = tool
         return self
 
-    def with_output(self, output_model: Type[OutputType]) -> "ChatWorkflow[OutputType]":
+    def with_output(self: "ChatWorkflow[Any]", output_model: Type[NewOutputType]) -> "ChatWorkflow[NewOutputType]":
         """Set the output model for the workflow.
 
         Parameters
@@ -252,9 +255,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             The workflow instance for method chaining.
         """
         self.output_model = output_model
-        return self
+        return cast("ChatWorkflow[NewOutputType]", self)
 
-    def with_inputs(self, **kwargs: Any) -> "ChatWorkflow":
+    def with_inputs(self, **kwargs: Any) -> Self:
         """Set the input for the workflow.
 
         Parameters
@@ -270,12 +273,12 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         self.inputs.update(kwargs)
         return self
 
-    def with_context(self, context: RunContext) -> "ChatWorkflow":
+    def with_context(self, context: RunContext) -> Self:
         """Set the context for the workflow."""
         self.context = context
         return self
 
-    def on_error(self, error_policy: ErrorPolicy) -> "ChatWorkflow":
+    def on_error(self, error_policy: ErrorPolicy) -> Self:
         """Set the error handling behavior for the workflow."""
         self.error_policy = error_policy
         return self
