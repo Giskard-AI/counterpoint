@@ -127,7 +127,7 @@ class _StepRunner:
 
                 step_index += 1
                 if step_index >= max_steps:
-                    break
+                    return
 
             # Now we run the generator to create a completion
             message = await self._run_completion(chat)
