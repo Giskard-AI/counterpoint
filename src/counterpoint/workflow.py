@@ -374,7 +374,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         return chat
 
     @logfire.instrument("chat_workflow.run_many")
-    async def run_many(self, n: int, max_steps: int | None = None):
+    async def run_many(
+        self, n: int, max_steps: int | None = None
+    ) -> List[Chat[OutputType]]:
         """Run multiple completions in parallel.
 
         Parameters
@@ -464,7 +466,9 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
 
             yield result
 
-    async def stream_batch(self, inputs: list[dict], max_steps: int | None = None) -> AsyncIterator[Chat[OutputType]]:
+    async def stream_batch(
+        self, inputs: list[dict], max_steps: int | None = None
+    ) -> AsyncIterator[Chat[OutputType]]:
         """Stream a batch of completions as they complete.
 
         Parameters
