@@ -41,7 +41,7 @@ import counterpoint as cp
 
 generator = cp.Generator(model="openai/gpt-4o-mini")
 
-# generator.chat automaticall creates a workflow that can be run.
+# generator.chat automatically creates a workflow that can be run.
 chat = await generator.chat("Hello, how are you?").run()
 
 # print the content of the last message (in this case, the assistant's response)
