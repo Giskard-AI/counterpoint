@@ -158,18 +158,12 @@ class Tool(BaseModel):
 
         try:
             res = self.fn(**arguments)
-        except Exception as error:  # synchronous exception
+            if inspect.isawaitable(res):
+                res = await res
+        except Exception as error:
             if self.catch is not None:
                 return self.catch(error)
             raise
-
-        if inspect.isawaitable(res):
-            try:
-                res = await res
-            except Exception as error:  # asynchronous exception
-                if self.catch is not None:
-                    return self.catch(error)
-                raise
 
         if isinstance(res, BaseModel):
             res = res.model_dump()
