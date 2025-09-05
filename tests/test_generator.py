@@ -7,7 +7,7 @@ from litellm import ModelResponse
 from counterpoint.chat import Chat, Message
 from counterpoint.generators.base import Response
 from counterpoint.generators.litellm_generator import LiteLLMGenerator
-from counterpoint.pipeline import Pipeline
+from counterpoint.workflow import ChatWorkflow
 from counterpoint.rate_limiter import RateLimiter
 from counterpoint.templates import MessageTemplate
 
@@ -61,7 +61,7 @@ async def test_generator_chat(generator: LiteLLMGenerator):
     test_message = "Hello, world!"
     pipeline = generator.chat(test_message)
 
-    assert isinstance(pipeline, Pipeline)
+    assert isinstance(pipeline, ChatWorkflow)
     assert len(pipeline.messages) == 1
     assert isinstance(pipeline.messages[0], MessageTemplate)
     assert pipeline.messages[0].role == "user"
