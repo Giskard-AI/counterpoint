@@ -5,7 +5,6 @@ from typing import List
 import pytest
 
 import counterpoint as cp
-from counterpoint.errors.serializable import Error
 from counterpoint.tools import Tool, tool
 
 
