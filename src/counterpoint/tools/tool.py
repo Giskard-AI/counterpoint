@@ -166,6 +166,10 @@ class Tool(BaseModel):
             else:
                 raise
 
+        if isinstance(res, Error):
+            logfire.error("tool.run.error", error=res)
+            return str(res)
+
         if isinstance(res, BaseModel):
             res = res.model_dump()
 

@@ -116,8 +116,7 @@ async def test_tool_catches_errors(generator):
         raise ValueError("City not found")
 
     result = await get_weather.run({"city": "Paris"})
-    assert isinstance(result, Error)
-    assert str(result) == "ERROR: City not found"
+    assert result == "ERROR: City not found"
 
     # The original function behavior is not modified
     with pytest.raises(ValueError):
@@ -132,8 +131,7 @@ async def test_tool_catches_errors_with_async_function(generator):
         raise ValueError("City not found")
 
     result = await get_weather.run({"city": "Paris"})
-    assert isinstance(result, Error)
-    assert str(result) == "ERROR: City not found"
+    assert result == "ERROR: City not found"
 
     # The original function behavior is not modified
     with pytest.raises(ValueError):
@@ -180,8 +178,7 @@ async def test_tool_method_catches_errors(generator):
 
     weather = Weather()
     result = await weather.get_weather.run({"city": "Paris"})
-    assert isinstance(result, Error)
-    assert str(result) == "ERROR: City not found"
+    assert result == "ERROR: City not found"
 
     # The original function behavior is not modified
     with pytest.raises(ValueError):
