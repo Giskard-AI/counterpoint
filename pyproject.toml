@@ -1,6 +1,6 @@
 [project]
 name = "counterpoint"
-version = "0.1.2"
+version = "0.2.0"
 description = " A lightweight library that orchestrates LLM completions and agents in parallel workflows "
 readme = "README.md"
 authors = [{ name = "Giskard R&D", email = "rnd@giskard.ai" }]
