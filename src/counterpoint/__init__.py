@@ -1,14 +1,15 @@
 from .chat import Chat, Message
 from .context import RunContext
+from .errors import Error, WorkflowError
 from .generators import Generator
-from .pipeline import Pipeline
 from .rate_limiter import RateLimiter, RateLimiterStrategy
 from .templates import MessageTemplate, get_prompts_manager, set_prompts_path
 from .tools import Tool, tool
+from .workflow import ChatWorkflow, ErrorPolicy
 
 __all__ = [
     "Generator",
-    "Pipeline",
+    "ChatWorkflow",
     "Chat",
     "Message",
     "Tool",
@@ -19,4 +20,7 @@ __all__ = [
     "RateLimiterStrategy",
     "RateLimiter",
     "RunContext",
+    "ErrorPolicy",
+    "WorkflowError",
+    "Error",
 ]

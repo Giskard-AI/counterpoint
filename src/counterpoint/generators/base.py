@@ -8,7 +8,7 @@ from ..chat import Message, Role
 from ..tools import Tool
 
 if TYPE_CHECKING:
-    from ..pipeline import Pipeline
+    from ..workflow import ChatWorkflow
 
 
 class Response(BaseModel):
@@ -85,7 +85,7 @@ class BaseGenerator(BaseModel, ABC):
         responses = await asyncio.gather(*completion_requests)
         return responses
 
-    def chat(self, message: str, role: Role = "user") -> "Pipeline":
+    def chat(self, message: str, role: Role = "user") -> "ChatWorkflow":
         """Create a new chat pipeline with the given message.
 
         Parameters
@@ -98,11 +98,11 @@ class BaseGenerator(BaseModel, ABC):
         Pipeline
             A Pipeline object that can be used to run the completion.
         """
-        from ..pipeline import Pipeline
+        from ..workflow import ChatWorkflow
 
-        return Pipeline(generator=self).chat(message, role)
+        return ChatWorkflow(generator=self).chat(message, role)
 
-    def template(self, template_name: str) -> "Pipeline":
+    def template(self, template_name: str) -> "ChatWorkflow":
         """Create a new chat pipeline with the given message.
 
         Parameters
@@ -115,9 +115,9 @@ class BaseGenerator(BaseModel, ABC):
         Pipeline
             A Pipeline object that can be used to run the completion.
         """
-        from ..pipeline import Pipeline
+        from ..workflow import ChatWorkflow
 
-        return Pipeline(generator=self).template(template_name)
+        return ChatWorkflow(generator=self).template(template_name)
 
     def with_params(self, **kwargs: Any) -> "BaseGenerator":
         """Create a new generator with the given parameters.

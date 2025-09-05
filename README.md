@@ -1,6 +1,6 @@
 # Counterpoint
 
-Counterpoint is a lightweight library that orchestrates LLM completions and agents in parallel workflows. Just as musical counterpoint weaves together rhythmically and melodically independent voices into a cohesive composition, Counterpoint enables multiple AI pipelines to run independently but in a _punctus contra punctum_ synchrony.
+Counterpoint is a lightweight library that orchestrates LLM completions and agents in parallel workflows. Just as musical counterpoint weaves together rhythmically and melodically independent voices into a cohesive composition, Counterpoint enables multiple AI workflows to run independently but in a _punctus contra punctum_ synchrony.
 
 ## Requirements
 
@@ -11,11 +11,13 @@ Counterpoint is a lightweight library that orchestrates LLM completions and agen
 ### Using uv (recommended)
 
 Install the package:
+
 ```bash
 uv add counterpoint
 ```
 
 For development, install with dev dependencies:
+
 ```bash
 uv add counterpoint --dev
 ```
@@ -25,7 +27,7 @@ uv add counterpoint --dev
 Three basic elements to keep in mind:
 
 - `Generator` corresponds to a conversational text generator. In short, it represents a model with certain params, and can run completions.
-- `Pipeline` defines all what's needed to run a chat with the generator. It handles templates, parsing, and tools.
+- `ChatWorkflow` defines all what's needed to run a chat with the generator. It handles templates, parsing, and tools.
 - `Chat` is the result of a pipeline run. It contains the generated messages and everything you would expect.
 
 Also important to keep in mind: everything is async.
@@ -39,7 +41,7 @@ import counterpoint as cp
 
 generator = cp.Generator(model="openai/gpt-4o-mini")
 
-# generator.chat automaticall creates a pipeline that can be run.
+# generator.chat automatically creates a workflow that can be run.
 chat = await generator.chat("Hello, how are you?").run()
 
 # print the content of the last message (in this case, the assistant's response)
@@ -52,7 +54,7 @@ You can run multiple chats in parallel:
 chats = await generator.chat("Hello, how are you?").run_many(n=3)
 ```
 
-Or add multiple messages to the pipeline:
+Or add multiple messages to the workflow:
 
 ```python
 # The chat message role is "user" by default.
@@ -68,7 +70,7 @@ chat = await (
 
 ## Structured output
 
-You can specify the output model for the pipeline, and this will be passed to
+You can specify the output model for the workflow, and this will be passed to
 each completion call:
 
 ```python
@@ -90,7 +92,7 @@ assert chat.output.mood == "happy"
 
 ### Inline templates
 
-You can associate input variables to a pipeline, and use them in the messages thanks to jinja2 templating. Here's an example:
+You can associate input variables to a workflow, and use them in the messages thanks to jinja2 templating. Here's an example:
 
 ```python
 
@@ -184,7 +186,7 @@ assert len(chats) == 2
 
 ## Tools
 
-You can define tools using the `@cp.tool` decorator. Tools will be automatically called when the pipeline is run.
+You can define tools using the `@cp.tool` decorator. Tools will be automatically called when the workflow is run.
 
 When defining tools, you need to make sure that all tool arguments have type hints. These will be used to define the tool schema. You must also provide a docstring, which will be used to describe the tool to the LLM. If you include the parameters in the docstring, their descriptions will be automatically added to the tool schema.
 
@@ -249,7 +251,7 @@ chat = await (generator.chat("Hello, what's the weather in {{ city }}?")
 assert "Paris" in chat.context.get("previously_asked_cities")
 ```
 
-To initialize the run context, you can pass it to the pipeline with the `with_context` method:
+To initialize the run context, you can pass it to the workflow with the `with_context` method:
 
 ```python
 run_context = cp.RunContext()
@@ -262,11 +264,62 @@ chat = await (generator.chat("Hello, what's the weather in {{ city }}?")
 )
 ```
 
+## Error handling
+
+### Errors during workflow execution
+
+You can specify the error handling policy for the workflow. By default, the workflow will raise an error if an error occurs. You can change this behavior by passing the `on_error` method.
+
+You can choose to:
+
+- Raise an error (`ErrorPolicy.RAISE`)
+- Return the chat with the error (`ErrorPolicy.RETURN`). The chat will have a `failed` attribute set to `True`, and an `error` attribute with a serializable error message.
+- For multi-run methods (e.g. `run_many` or `run_batch`), you can discard the failed chats (`ErrorPolicy.SKIP`). You will then only get the successful chats (potentially an empty list).
+
+Note: when running a single chat (`workflow.run(...)`), error policy is `SKIP` will behave as `RETURN`, returning `Chat` object with the error.
+
+```python
+# This may return less than 3 chats if some fail.
+chats = await generator.chat("Hello!", role="user").on_error(ErrorPolicy.SKIP).run_many(n=3)
+
+# This will return 3 chats, some may be in failed state.
+chats = await generator.chat("Hello!", role="user").on_error(ErrorPolicy.RETURN).run_many(n=3)
+
+for chat in chats:
+    if chat.failed:
+        print("CHAT FAILED:", chat.error.message)
+```
+
+### Errors during tool calls
+
+By default, `counterpoint` will catch errors during tool calls and return the error message as a tool result. This will let the agent decide what to do with the error (whether retrying or moving on).
+You can change this behavior by passing the `catch=None` on the tool decorator. In this case, the error will be raised and passed to the workflow, which will then handle it according to the workflow error handling policy.
+
+```python
+# Default behavior, will catch errors
+@cp.tool
+def get_weather(city: str) -> str:
+    raise ValueError("City not found")
+
+result = await get_weather.run(arguments={"city": "Paris"})
+print(result) # "ERROR: City not found"
+
+
+# Opt out of the catch
+@cp.tool(catch=None)
+def get_weather(city: str) -> str:
+    raise ValueError("City not found")
+
+# This will raise an exception
+result = await get_weather.run(arguments={"city": "Paris"})
+```
+
 ## Development
 
 ### Quick Setup
 
 For quick development setup, use the provided Makefile:
+
 ```bash
 make setup  # Install deps + tools
 make help   # See all available commands
@@ -275,11 +328,13 @@ make help   # See all available commands
 ### Manual Setup
 
 Install the project dependencies:
+
 ```bash
 uv sync
 ```
 
 Install development tools:
+
 ```bash
 uv tool install ruff
 uv tool install vermin
@@ -302,13 +357,13 @@ make clean         # Clean build artifacts
 
 ### Python Compatibility
 
-This project maintains compatibility with Python 3.10+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
+This project maintains compatibility with Python 3.11+. We use [vermin](https://github.com/netromdk/vermin) to ensure code compatibility:
 
 ```bash
-# Check Python 3.10 compatibility
+# Check Python 3.11 compatibility
 make check-compat
 # or manually:
-uv tool run vermin --target=3.10- --no-tips --violations .
+uv tool run vermin --target=3.11- --no-tips --violations .
 ```
 
 #### Setting up Pre-commit Hooks
