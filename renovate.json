@@ -9,7 +9,7 @@
     "extends": [
         "config:recommended",
         "helpers:pinGitHubActionDigests",
-        ":pinAllExceptPeerDependencies"
+        ":pinOnlyDevDependencies"
     ],
     "packageRules": [
         {

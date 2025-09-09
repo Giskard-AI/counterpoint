@@ -2,6 +2,8 @@
 
 from typing import List
 
+import pytest
+
 import counterpoint as cp
 from counterpoint.tools import Tool, tool
 
@@ -103,3 +105,80 @@ async def test_tool_run(generator):
     )
 
     assert "rain" in chat.last.content.lower()
+
+
+async def test_tool_catches_errors(generator):
+    """Test that the tool catches errors correctly."""
+
+    @cp.tool
+    def get_weather(city: str) -> str:
+        raise ValueError("City not found")
+
+    result = await get_weather.run({"city": "Paris"})
+    assert result == "ERROR: City not found"
+
+    # The original function behavior is not modified
+    with pytest.raises(ValueError):
+        get_weather("Paris")
+
+
+async def test_tool_catches_errors_with_async_function(generator):
+    """Test that the tool catches errors correctly."""
+
+    @cp.tool
+    async def get_weather(city: str) -> str:
+        raise ValueError("City not found")
+
+    result = await get_weather.run({"city": "Paris"})
+    assert result == "ERROR: City not found"
+
+    # The original function behavior is not modified
+    with pytest.raises(ValueError):
+        await get_weather("Paris")
+
+
+async def test_tool_does_not_catch_errors(generator):
+    """Test that the tool catches errors correctly."""
+
+    @cp.tool(catch=None)
+    def get_weather(city: str) -> str:
+        raise ValueError("City not found")
+
+    with pytest.raises(ValueError):
+        await get_weather.run({"city": "Paris"})
+
+    # The original function behavior is not modified
+    with pytest.raises(ValueError):
+        get_weather("Paris")
+
+
+async def test_tool_does_not_catch_errors_with_async_function(generator):
+    """Test that the tool catches errors correctly."""
+
+    @cp.tool(catch=None)
+    async def get_weather(city: str) -> str:
+        raise ValueError("City not found")
+
+    with pytest.raises(ValueError):
+        await get_weather.run({"city": "Paris"})
+
+    # The original function behavior is not modified
+    with pytest.raises(ValueError):
+        await get_weather("Paris")
+
+
+async def test_tool_method_catches_errors(generator):
+    """Test that the tool method catches errors correctly."""
+
+    class Weather:
+        @cp.tool
+        def get_weather(self, city: str) -> str:
+            raise ValueError("City not found")
+
+    weather = Weather()
+    result = await weather.get_weather.run({"city": "Paris"})
+    assert result == "ERROR: City not found"
+
+    # The original function behavior is not modified
+    with pytest.raises(ValueError):
+        weather.get_weather("Paris")
