@@ -318,7 +318,7 @@ wheels = [
 
 [[package]]
 name = "counterpoint"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "griffe" },
@@ -341,13 +341,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "griffe", specifier = "~=1.7.3" },
-    { name = "jinja2", specifier = "~=3.1.6" },
-    { name = "litellm", specifier = "~=1.72" },
-    { name = "logfire-api", specifier = "~=3.22.0" },
-    { name = "pydantic", specifier = "~=2.11.5" },
-    { name = "tenacity", specifier = "~=9.1.2" },
-    { name = "typing-extensions", specifier = "~=4.14.0" },
+    { name = "griffe", specifier = ">=1.7.0,<2" },
+    { name = "jinja2", specifier = ">=3.1.6,<4" },
+    { name = "litellm", specifier = ">=1.72.0,<2" },
+    { name = "logfire-api", specifier = ">=3.22.0,<4" },
+    { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "tenacity", specifier = ">=9.1.0,<10" },
+    { name = "typing-extensions", specifier = ">=4.14.0,<5" },
 ]
 
 [package.metadata.requires-dev]
