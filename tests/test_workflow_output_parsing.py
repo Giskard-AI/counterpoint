@@ -94,7 +94,7 @@ async def test_output_model_strict_validation_fails_when_no_content():
             .with_output(DummyOutputModel, strict=True, num_retries=0)  # No retries
             .run()
         )
-        assert isinstance(exc_info.value.exception, ValidationError)
+    assert isinstance(exc_info.value.exception, ValidationError)
 
 
 async def test_output_model_retry_success():
