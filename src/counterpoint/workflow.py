@@ -294,15 +294,13 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     ) -> "ChatWorkflow[NewOutputType]":
         """Set the output model for the workflow.
 
-        By default
-
         Parameters
         ----------
         output_model : Type[OutputType]
             The output model to use for the workflow.
         strict : bool, default True
             Whether to raise an error if the generator output is not compatible with the output schema.
-        num_retries : int or None, default 3
+        num_retries : int or None, default 2
             The number of times to retry the generation if the output does not match the expected schema. Requires `strict` to be `True`.
 
         Returns
