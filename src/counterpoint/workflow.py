@@ -223,7 +223,7 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         Optional Pydantic model used for response formatting.
     output_model_strict : bool, default True
         Whether to raise an error if the generator output is not compatible with the output schema.
-    output_model_num_retries : int or None, default 3
+    output_model_num_retries : int or None, default 2
         The number of times to retry the generation if the output does not match the expected schema. Requires `output_model_strict` to be `True`.
     context : RunContext
         Execution context copied per run.
