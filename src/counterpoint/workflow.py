@@ -174,9 +174,9 @@ class _StepRunner:
         # Determine if strict output parsing is enabled
         strict_parsing = chat.output_model and self._workflow.output_model_strict
         if strict_parsing:
-            num_retries = 1 + int(self._workflow.output_model_num_retries or 0)
+            max_attempts = 1 + int(self._workflow.output_model_num_retries or 0)
             retrier = t.AsyncRetrying(
-                stop=t.stop_after_attempt(num_retries),
+                stop=t.stop_after_attempt(max_attempts),
                 retry=t.retry_if_exception_type(ValidationError),
                 reraise=True,
             )
