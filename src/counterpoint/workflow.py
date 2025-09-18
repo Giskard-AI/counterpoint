@@ -17,7 +17,8 @@ from typing import (
 
 from contextlib import asynccontextmanager
 import logfire_api as logfire
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
+import tenacity as t
 
 from counterpoint.chat import Chat, Message, Role
 from counterpoint.context import RunContext
@@ -170,7 +171,38 @@ class _StepRunner:
             )
 
     async def _run_completion(self, chat: Chat) -> Message:
+        # Determine if strict output parsing is enabled
+        strict_parsing = chat.output_model and self._workflow.output_model_strict
+        if strict_parsing:
+            max_attempts = 1 + int(self._workflow.output_model_num_retries or 0)
+            retrier = t.AsyncRetrying(
+                stop=t.stop_after_attempt(max_attempts),
+                retry=t.retry_if_exception_type(ValidationError),
+                reraise=True,
+            )
+            return await retrier(
+                self._run_completion_with_output_validation,
+                chat,
+                output_model=chat.output_model,
+            )
+
+        # Simple completion without output validation
         response = await self._workflow.generator.complete(chat.messages, self._params)
+
+        return response.message
+
+    async def _run_completion_with_output_validation(
+        self, chat: Chat, output_model: Type[OutputType]
+    ) -> Message:
+        response = await self._workflow.generator.complete(chat.messages, self._params)
+
+        # If the assistant produced tool calls, defer parsing to after tools are run
+        if response.message.tool_calls:
+            return response.message
+
+        # Attempt the parsing to raise ValidationError if output is not compatible
+        response.message.parse(output_model)
+
         return response.message
 
 
@@ -189,6 +221,10 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         The prompt manager to use for rendering templates.
     output_model : type[OutputType] or None
         Optional Pydantic model used for response formatting.
+    output_model_strict : bool, default True
+        Whether to raise an error if the generator output is not compatible with the output schema.
+    output_model_num_retries : int or None, default 2
+        The number of times to retry the generation if the output does not match the expected schema. Requires `output_model_strict` to be `True`.
     context : RunContext
         Execution context copied per run.
     error_mode : Literal["raise", "pass"]
@@ -203,6 +239,8 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
     tools: Dict[str, Tool] = Field(default_factory=dict)
     inputs: Dict[str, Any] = Field(default_factory=dict)
     output_model: Type[OutputType] | None = Field(default=None)
+    output_model_strict: bool = Field(default=True)
+    output_model_num_retries: int | None = Field(default=2, ge=0)
     prompt_manager: PromptsManager = Field(default_factory=get_prompts_manager)
     context: RunContext = Field(default_factory=RunContext)
     error_policy: ErrorPolicy = Field(default=ErrorPolicy.RAISE)
@@ -249,7 +287,10 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         return self
 
     def with_output(
-        self: "ChatWorkflow[Any]", output_model: Type[NewOutputType]
+        self: "ChatWorkflow[Any]",
+        output_model: Type[NewOutputType],
+        strict: bool = True,
+        num_retries: int | None = 2,
     ) -> "ChatWorkflow[NewOutputType]":
         """Set the output model for the workflow.
 
@@ -257,6 +298,10 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
         ----------
         output_model : Type[OutputType]
             The output model to use for the workflow.
+        strict : bool, default True
+            Whether to raise an error if the generator output is not compatible with the output schema.
+        num_retries : int or None, default 2
+            The number of times to retry the generation if the output does not match the expected schema. Requires `strict` to be `True`.
 
         Returns
         -------
@@ -264,6 +309,8 @@ class ChatWorkflow(BaseModel, Generic[OutputType]):
             The workflow instance for method chaining.
         """
         self.output_model = output_model
+        self.output_model_strict = strict
+        self.output_model_num_retries = num_retries
         return cast("ChatWorkflow[NewOutputType]", self)
 
     def with_inputs(self, **kwargs: Any) -> Self:
