@@ -20,17 +20,18 @@ class LiteLLMGenerator(WithRateLimiter, WithRetryPolicy, BaseGenerator):
     async def _complete_once(
         self, messages: list[Message], params: GenerationParams | None = None
     ) -> Response:
-        params_ = self.params.model_dump(exclude={"tools"})
+        # Exclude 'extra' so it isn't sent as a top-level arg to LiteLLM
+        params_ = self.params.model_dump(exclude={"tools", "extra"})
 
         if params is not None:
-            params_.update(params.model_dump(exclude={"tools"}))
+            params_.update(params.model_dump(exclude={"tools", "extra"}))
 
         # Now special handling of the tools
         tools = self.params.tools + (params.tools if params is not None else [])
         if tools:
             params_["tools"] = [t.to_litellm_function() for t in tools]
 
-        # Merge generic extras
+        # Merge generic extras (these are provider-specific kwargs)
         if getattr(self.params, "extra", None):
             params_.update(self.params.extra)
         if params is not None and getattr(params, "extra", None):
