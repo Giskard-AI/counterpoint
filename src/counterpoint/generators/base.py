@@ -2,6 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Literal, Type
 
+from typing import Any
 from pydantic import BaseModel, Field
 
 from ..chat import Message, Role
@@ -25,12 +26,19 @@ class GenerationParams(BaseModel):
     ----------
     tools : list[Any], optional
         List of tools available to the model.
+    api_base : str | None, optional
+        Base URL for the LLM provider (e.g., OpenAI-compatible endpoint).
+    api_key : str | None, optional
+        API key to authenticate against the LLM provider.
     """
 
     temperature: float = Field(default=1.0)
     max_tokens: int | None = Field(default=None)
     response_format: Type[BaseModel] | None = Field(default=None)
     tools: list[Tool] = Field(default_factory=list)
+    api_base: str | None = Field(default=None)
+    api_key: str | None = Field(default=None)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class BaseGenerator(BaseModel, ABC):

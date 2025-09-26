@@ -30,6 +30,12 @@ class LiteLLMGenerator(WithRateLimiter, WithRetryPolicy, BaseGenerator):
         if tools:
             params_["tools"] = [t.to_litellm_function() for t in tools]
 
+        # Merge generic extras
+        if getattr(self.params, "extra", None):
+            params_.update(self.params.extra)
+        if params is not None and getattr(params, "extra", None):
+            params_.update(params.extra)
+
         async with self._rate_limiter_context():
             response = await acompletion(
                 messages=[m.to_litellm() for m in messages],
