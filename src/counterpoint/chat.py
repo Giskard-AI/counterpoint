@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from counterpoint.context import RunContext
 from counterpoint.exceptions import CounterpointConfigError
+from counterpoint.errors.serializable import Error
 from counterpoint.tools import ToolCall
 
 Role = Literal["assistant", "user", "system", "tool"]
@@ -72,6 +73,8 @@ class Chat(BaseModel, Generic[OutputType]):
     output_model: Type[OutputType] | None = Field(default=None)
     context: RunContext = Field(default_factory=RunContext)
 
+    error: Error | None = None
+
     @property
     def last(self) -> Message:
         return self.messages[-1]
@@ -94,3 +97,14 @@ class Chat(BaseModel, Generic[OutputType]):
                 "Output model not set. Call Pipeline.with_output(...) before accessing Chat.output."
             )
         return self.last.parse(self.output_model)
+
+    @property
+    def failed(self) -> bool:
+        return self.error is not None
+
+    def clone(self, deep: bool = True) -> "Chat":
+        return self.model_copy(deep=deep)
+
+    def add(self, message: Message) -> "Chat":
+        self.messages.append(message)
+        return self

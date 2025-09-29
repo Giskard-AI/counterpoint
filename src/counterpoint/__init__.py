@@ -6,15 +6,16 @@ from .exceptions import (
     ToolError,
     ToolDefinitionError,
 )
+from .errors import Error, WorkflowError
 from .generators import Generator
-from .pipeline import Pipeline
 from .rate_limiter import RateLimiter, RateLimiterStrategy
 from .templates import MessageTemplate, get_prompts_manager, set_prompts_path
 from .tools import Tool, tool
+from .workflow import ChatWorkflow, ErrorPolicy
 
 __all__ = [
     "Generator",
-    "Pipeline",
+    "ChatWorkflow",
     "Chat",
     "Message",
     "Tool",
@@ -29,4 +30,7 @@ __all__ = [
     "CounterpointConfigError",
     "ToolError",
     "ToolDefinitionError",
+    "ErrorPolicy",
+    "WorkflowError",
+    "Error",
 ]
