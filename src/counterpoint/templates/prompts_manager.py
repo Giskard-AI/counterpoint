@@ -114,9 +114,25 @@ def get_prompts_manager() -> PromptsManager:
     return _prompts_manager
 
 
+@deprecated("Use set_default_prompts_path instead")
 def set_prompts_path(path: str):
     """Set a custom prompts path."""
-    _prompts_manager.set_prompts_path(path)
+    _prompts_manager.set_default_prompts_path(path)
+
+
+def set_default_prompts_path(path: str):
+    """Set a custom prompts path."""
+    _prompts_manager.set_default_prompts_path(path)
+
+
+def add_prompts_path(path: str, namespace: str):
+    """Add a custom prompts path for a given namespace."""
+    _prompts_manager.add_prompts_path(path, namespace)
+
+
+def remove_prompts_path(namespace: str):
+    """Remove a custom prompts path for a given namespace."""
+    _prompts_manager.remove_prompts_path(namespace)
 
 
 async def render_template(
