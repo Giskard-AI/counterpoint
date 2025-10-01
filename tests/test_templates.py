@@ -9,7 +9,9 @@ from counterpoint.templates import MessageTemplate, PromptsManager
 
 @pytest.fixture
 def prompts_manager():
-    return PromptsManager(prompts_path=Path(__file__).parent / "data" / "prompts")
+    return PromptsManager(
+        default_prompts_path=Path(__file__).parent / "data" / "prompts"
+    )
 
 
 async def test_message_template():
@@ -91,7 +93,7 @@ async def test_pydantic_json_rendering_with_prompts_manager():
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        prompts_manager = PromptsManager(prompts_path=tmp_dir)
+        prompts_manager = PromptsManager(default_prompts_path=tmp_dir)
 
         template_path = Path(tmp_dir) / "book.j2"
         template_path.write_text("Here is a book:\n{{ book }}")

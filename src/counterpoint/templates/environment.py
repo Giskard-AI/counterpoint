@@ -1,9 +1,12 @@
+import importlib
 import json
-from typing import Any
+from pathlib import Path
+from typing import Any, Mapping
 
-from jinja2 import Environment, StrictUndefined, nodes
+from jinja2 import BaseLoader, Environment, StrictUndefined, nodes
+from jinja2.exceptions import TemplateNotFound
 from jinja2.ext import Extension
-from jinja2.loaders import FileSystemLoader
+from jinja2.loaders import FileSystemLoader, PrefixLoader
 from pydantic import BaseModel
 
 from counterpoint.chat import Message
@@ -53,10 +56,32 @@ class MessageExtension(Extension):
         return ""
 
 
-def create_message_environment(prompts_path: str) -> Environment:
+class PromptsLoader(PrefixLoader):
+    def get_loader(self, template: str) -> tuple[BaseLoader, str]:
+        try:
+            prefix, name = template.split(self.delimiter, 1)
+        except ValueError:
+            prefix = "__default__"
+            name = template
+
+        try:
+            loader = self.mapping[prefix]
+        except KeyError as e:
+            raise TemplateNotFound(template) from e
+
+        return loader, name
+
+
+def create_message_environment(loader_mapping: dict[str, Path]) -> Environment:
     """Create a Jinja2 environment with MessageExtension."""
     return Environment(
-        loader=FileSystemLoader(prompts_path),
+        loader=PromptsLoader(
+            {
+                namespace: FileSystemLoader(path)
+                for namespace, path in loader_mapping.items()
+            },
+            delimiter="::",
+        ),
         extensions=[MessageExtension],
         trim_blocks=True,
         lstrip_blocks=True,

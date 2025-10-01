@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import Any, Dict, List
+from typing_extensions import deprecated, Sentinel
 
 from jinja2 import Template
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from counterpoint.chat import Message
 
@@ -46,11 +47,29 @@ async def render_messages_template(
 class PromptsManager(BaseModel):
     """Manages prompts path and template loading."""
 
-    prompts_path: Path = Field(default_factory=lambda: Path.cwd() / "prompts")
+    default_prompts_path: Path = Field(default_factory=lambda: Path.cwd() / "prompts")
 
-    def set_prompts_path(self, path: str | Path):
+    namespaces: Dict[str, Path] = Field(default_factory=dict)
+
+    def set_default_prompts_path(self, path: str | Path):
         """Set a custom prompts path."""
-        self.prompts_path = Path(path)
+        self.default_prompts_path = Path(path)
+
+    def add_prompts_path(self, path: str | Path, namespace: str):
+        """Add a custom prompts path for a given namespace."""
+        if namespace in self.namespaces:
+            raise ValueError(f"Namespace {namespace} already exists")
+        self.namespaces[namespace] = Path(path)
+
+    def remove_prompts_path(self, namespace: str):
+        """Remove a custom prompts path for a given namespace."""
+        if namespace not in self.namespaces:
+            raise ValueError(f"Namespace {namespace} does not exist")
+        del self.namespaces[namespace]
+
+    @deprecated("Use set_default_prompts_path instead")
+    def set_prompts_path(self, path: str | Path):
+        self.set_default_prompts_path(path)
 
     async def render_template(
         self, template_name: str, variables: Dict[str, Any] = None
@@ -73,7 +92,12 @@ class PromptsManager(BaseModel):
         # We create a fresh environment for each render to isolate the state
         # between renders. This is slightly inefficient but necessary for the
         # message parser to work correctly.
-        env = create_message_environment(str(self.prompts_path))
+        env = create_message_environment(
+            {
+                "__default__": self.default_prompts_path,
+                **self.namespaces,
+            }
+        )
         template = env.get_template(template_name)
 
         messages = await render_messages_template(template, variables)
