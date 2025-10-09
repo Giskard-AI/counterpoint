@@ -36,12 +36,13 @@ jobs:
           exit 1
 
       - name: Validate version format
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ ! "$VERSION_INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid version format. Use X.Y.Z"
             exit 1
           fi
-
       # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
