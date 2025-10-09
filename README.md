@@ -396,3 +396,7 @@ uv run pip-audit .
 ```
 
 Both compatibility and security checks are automatically run in CI for every pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

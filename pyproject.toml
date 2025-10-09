@@ -3,6 +3,7 @@ name = "counterpoint"
 version = "0.2.2"
 description = " A lightweight library that orchestrates LLM completions and agents in parallel workflows "
 readme = "README.md"
+license = { text = "MIT" }
 authors = [{ name = "Giskard R&D", email = "rnd@giskard.ai" }]
 requires-python = ">=3.11"
 dependencies = [
