@@ -25,13 +25,15 @@ jobs:
         run: |
           VERSION_NUMBER=$(grep '^version\s*=' pyproject.toml | head -1 | cut -d '"' -f2)
           VERSION_NAME="v${VERSION_NUMBER}"
-          echo "version_number=${VERSION_NUMBER}" >> $GITHUB_OUTPUT
-          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          printf 'version_number=%s\n' "$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
+          printf 'version_name=%s\n' "$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag exists
+        env:
+          VERSION_NAME: ${{ steps.get_version.outputs.version_name }}
         run: |
-          if git rev-parse "refs/tags/${{ steps.get_version.outputs.version_name }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.get_version.outputs.version_name }} already exists. Skipping."
+          if git rev-parse "refs/tags/$VERSION_NAME" >/dev/null 2>&1; then
+            echo "Tag $VERSION_NAME already exists. Skipping."
             exit 0
           fi
 
@@ -41,9 +43,11 @@ jobs:
           git config --global user.email 'bot.releaser@users.noreply.github.com'
 
       - name: Create and push tag
+        env:
+          VERSION_NAME: ${{ steps.get_version.outputs.version_name }}
         run: |
-          git tag ${{ steps.get_version.outputs.version_name }}
-          git push origin ${{ steps.get_version.outputs.version_name }}
+          git tag "$VERSION_NAME"
+          git push origin "$VERSION_NAME"
 
       - name: Install uv
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
@@ -55,9 +59,11 @@ jobs:
         run: uv build
 
       - name: Create GitHub Release
+        env:
+          VERSION_NAME: ${{ steps.get_version.outputs.version_name }}
         uses: softprops/action-gh-release@aec2ec56f94eb8180ceec724245f64ef008b89f5 # v2
         with:
-          tag_name: ${{ steps.get_version.outputs.version_name }}
+          tag_name: ${{ env.VERSION_NAME }}
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
