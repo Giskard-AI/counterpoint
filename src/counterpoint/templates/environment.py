@@ -1,7 +1,6 @@
-import importlib
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from jinja2 import BaseLoader, Environment, StrictUndefined, nodes
 from jinja2.exceptions import TemplateNotFound
