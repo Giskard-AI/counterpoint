@@ -81,7 +81,7 @@ async def test_workflow_with_mixed_templates(generator: LiteLLMGenerator):
     workflow = cp.ChatWorkflow(
         generator=generator,
         prompt_manager=PromptsManager(
-            prompts_path=Path(__file__).parent / "data" / "prompts"
+            default_prompts_path=Path(__file__).parent / "data" / "prompts"
         ),
     )
 
