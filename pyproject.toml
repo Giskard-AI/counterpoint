@@ -1,6 +1,6 @@
 [project]
 name = "counterpoint"
-version = "0.2.2"
+version = "0.2.3"
 description = " A lightweight library that orchestrates LLM completions and agents in parallel workflows "
 readme = "README.md"
 license = { text = "MIT" }
