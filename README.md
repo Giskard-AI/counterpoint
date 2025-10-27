@@ -106,7 +106,7 @@ chat = await (
 
 ### External templates
 
-For more complicated prompts you can define your template in a separate file. First tell `giskard-agents` where to find the templates (you probably want to do this in your `__init__.py` file):
+For more complicated prompts you can define your template in a separate file. First tell `giskard.agents` where to find the templates (you probably want to do this in your `__init__.py` file):
 
 ```python
 agents.set_prompts_path("path/to/the/prompts")
@@ -129,7 +129,7 @@ chat = await (
 ### Multi-message templates
 
 Sometimes you may want to use more complex, multi-message prompts. This is particularly useful when you need a few-shots chat that includes examples.
-For this need, `giskard-agents` provides a special syntax to define multi-message prompts.
+For this need, `giskard.agents` provides a special syntax to define multi-message prompts.
 
 ```jinja
 {% message system %}
@@ -292,7 +292,7 @@ for chat in chats:
 
 ### Errors during tool calls
 
-By default, `giskard-agents` will catch errors during tool calls and return the error message as a tool result. This will let the agent decide what to do with the error (whether retrying or moving on).
+By default, `giskard.agents` will catch errors during tool calls and return the error message as a tool result. This will let the agent decide what to do with the error (whether retrying or moving on).
 You can change this behavior by passing the `catch=None` on the tool decorator. In this case, the error will be raised and passed to the workflow, which will then handle it according to the workflow error handling policy.
 
 ```python
