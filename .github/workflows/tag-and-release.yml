@@ -58,6 +58,19 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Verify artifacts exist
+        run: |
+          ls -l dist
+          shopt -s nullglob
+          files=(dist/*.tar.gz dist/*.whl)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No distribution files found in dist/"
+            exit 1
+          fi
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
       - name: Create GitHub Release
         env:
           VERSION_NAME: ${{ steps.get_version.outputs.version_name }}
