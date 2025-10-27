@@ -53,8 +53,10 @@ jobs:
 
       # Write release version env vars
       - name: Write release version env vars
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          VERSION_NAME="v${{ inputs.version }}"
+          VERSION_NAME="v${VERSION_INPUT}"
           VERSION_NUMBER="${VERSION_NAME:1}"
           echo "VERSION_NUMBER=${VERSION_NUMBER}" >> $GITHUB_ENV
           echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
