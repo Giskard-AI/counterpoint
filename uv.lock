@@ -318,7 +318,7 @@ wheels = [
 
 [[package]]
 name = "counterpoint"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "griffe" },
@@ -344,7 +344,7 @@ requires-dist = [
     { name = "griffe", specifier = ">=1.7.0,<2" },
     { name = "jinja2", specifier = ">=3.1.6,<4" },
     { name = "litellm", specifier = ">=1.72.0,<2" },
-    { name = "logfire-api", specifier = ">=3.22.0,<4" },
+    { name = "logfire-api", specifier = ">=3.22.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
     { name = "tenacity", specifier = ">=9.1.0,<10" },
     { name = "typing-extensions", specifier = ">=4.14.0,<5" },
@@ -892,11 +892,11 @@ wheels = [
 
 [[package]]
 name = "logfire-api"
-version = "3.22.0"
+version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/72/d2/4c68de2f855d0166f3f015c3f2caf2c1311a3ac37cd0ed12b2aa3f2ec77c/logfire_api-3.22.0.tar.gz", hash = "sha256:30a1bc8b67b6feaeef59f7ee01270f06748d26d0e797c3cadcd0e68455c650b5", size = 50454, upload-time = "2025-07-02T14:41:37.458Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/25/6072086af3b3ac5c2c2f2a6cf89488a1b228ffc6ee0fb357ed1e227efd13/logfire_api-4.14.2.tar.gz", hash = "sha256:bbdeccd931069b76ab811261b41bc52d8b78d1c045fc4b4237dbc085e0fb9bcd", size = 57604, upload-time = "2025-10-24T20:14:40.551Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/3f/fa20041785fc4bec64287a07f40327ed54bb367ac7159a9bdc7fcc88c83a/logfire_api-3.22.0-py3-none-any.whl", hash = "sha256:724f98463845fe893f1b7cbda486b4088593adc31ffb0c7076688d13f2d284ab", size = 84584, upload-time = "2025-07-02T14:41:34.232Z" },
+    { url = "https://files.pythonhosted.org/packages/58/c7/b06a83df678fca882c24fb498e628e0406bdb95ffdfa7ae43ecc0a714d52/logfire_api-4.14.2-py3-none-any.whl", hash = "sha256:aa4af2ecb007c3e0095e25ba4526fd8c0e2c0be2ceceac71ca651c4ad86dc713", size = 95021, upload-time = "2025-10-24T20:14:36.161Z" },
 ]
 
 [[package]]
