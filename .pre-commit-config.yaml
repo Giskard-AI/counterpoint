@@ -3,4 +3,4 @@ repos:
     rev: v1.6.0
     hooks:
       - id: vermin
-        args: ['-t=3.10-', '--violations'] 
+        args: ['-t=3.11-', '--violations'] 

@@ -4,7 +4,7 @@ Counterpoint is a lightweight library that orchestrates LLM completions and agen
 
 ## Requirements
 
-- Python 3.10 or higher
+- Python 3.11 or higher
 
 ## Installation
 
@@ -382,7 +382,7 @@ pre-commit install
 make pre-commit-run
 ```
 
-The hooks will now run automatically on `git commit` and prevent commits that don't meet Python 3.10 compatibility requirements.
+The hooks will now run automatically on `git commit` and prevent commits that don't meet Python 3.11 compatibility requirements.
 
 ### Security
 
