@@ -7,6 +7,7 @@ import logfire_api as logfire
 from pydantic import BaseModel, Field, create_model
 
 from counterpoint.context import RunContext
+from counterpoint.exceptions import ToolDefinitionError
 from counterpoint.errors.serializable import Error
 
 from ._docstring_parser import parse_docstring
@@ -61,7 +62,7 @@ class Tool(BaseModel):
 
         Raises
         ------
-        ValueError
+        ToolDefinitionError
             If the function lacks proper annotations or docstring.
         """
         sig = inspect.signature(fn)
@@ -72,7 +73,7 @@ class Tool(BaseModel):
 
         for name, param in sig.parameters.items():
             if param.annotation is inspect.Parameter.empty:
-                raise ValueError(
+                raise ToolDefinitionError(
                     f"Tool `{fn.__name__}` parameter `{name}` must have a type annotation"
                 )
 

@@ -6,6 +6,7 @@ from jinja2 import Template
 from pydantic import BaseModel, Field
 
 from counterpoint.chat import Message
+from counterpoint.exceptions import CounterpointConfigError
 
 from .environment import create_message_environment
 
@@ -36,7 +37,7 @@ async def render_messages_template(
     # 2. There are no message blocks. In this case, we will create a single user message with the rendered output.
     if messages:
         if rendered_output.strip():
-            raise ValueError(
+            raise CounterpointConfigError(
                 "Template contains message blocks but rendered output is not empty."
             )
         return messages

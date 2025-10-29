@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 
 from pydantic import BaseModel, Field, PrivateAttr
 
+from .exceptions import CounterpointConfigError
+
 
 class RateLimiterStrategy(BaseModel):
     min_interval: float
@@ -91,7 +93,7 @@ def _register_rate_limiter(rate_limiter: RateLimiter) -> None:
 def get_rate_limiter(
     rate_limiter_id: str,
 ) -> RateLimiter:
-    """Get or create a rate limiter.
+    """Get a rate limiter by id.
 
     Parameters
     ----------
@@ -102,8 +104,15 @@ def get_rate_limiter(
     -------
     RateLimiter
         The rate limiter.
+
+    Raises
+    ------
+    CounterpointConfigError
+        If a rate limiter with the given id is not registered.
     """
     try:
         return _rate_limiters[rate_limiter_id]
     except KeyError as err:
-        raise ValueError(f"Rate limiter with id {rate_limiter_id} not found") from err
+        raise CounterpointConfigError(
+            f"Rate limiter with id {rate_limiter_id} not found"
+        ) from err
