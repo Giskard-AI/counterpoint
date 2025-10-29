@@ -2,10 +2,10 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError, PrivateAttr
 import pytest
 
-import counterpoint as cp
-from counterpoint.chat import Message
-from counterpoint.generators.base import Response
-from counterpoint.generators import BaseGenerator, GenerationParams
+from giskard import agents
+from giskard.agents.chat import Message
+from giskard.agents.generators.base import Response
+from giskard.agents.generators import BaseGenerator, GenerationParams
 
 
 class DummyOutputModel(BaseModel):
@@ -50,7 +50,7 @@ async def test_output_model_strict_validation_success():
     valid_json = '{"name": "test", "score": 85, "active": true}'
 
     generator = MockValidationGenerator(responses=[valid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
     chat = await (
         workflow.chat("Please provide a response", role="user")
@@ -72,9 +72,9 @@ async def test_output_model_strict_validation_failure():
     invalid_json = '{"name": "test", "score": 150, "active": "not_boolean"}'  # score > 100, active not boolean
 
     generator = MockValidationGenerator(responses=[invalid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
-    with pytest.raises(cp.errors.WorkflowError) as exc_info:
+    with pytest.raises(agents.errors.WorkflowError) as exc_info:
         await (
             workflow.chat("Please provide a response", role="user")
             .with_output(DummyOutputModel, strict=True, num_retries=0)  # No retries
@@ -86,9 +86,9 @@ async def test_output_model_strict_validation_failure():
 async def test_output_model_strict_validation_fails_when_no_content():
     """Test that invalid JSON output raises ValidationError in strict mode."""
     generator = MockValidationGenerator(responses=[None])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
-    with pytest.raises(cp.errors.WorkflowError) as exc_info:
+    with pytest.raises(agents.errors.WorkflowError) as exc_info:
         await (
             workflow.chat("Please provide a response", role="user")
             .with_output(DummyOutputModel, strict=True, num_retries=0)  # No retries
@@ -107,7 +107,7 @@ async def test_output_model_retry_success():
     )
 
     generator = MockValidationGenerator(responses=[invalid_json, valid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
     chat = await (
         workflow.chat("Please provide a response", role="user")
@@ -138,9 +138,9 @@ async def test_output_model_retry_exhausted():
     generator = MockValidationGenerator(
         responses=[invalid_json_1, invalid_json_2, invalid_json_3]
     )
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
-    with pytest.raises(cp.errors.WorkflowError) as exc_info:
+    with pytest.raises(agents.errors.WorkflowError) as exc_info:
         await (
             workflow.chat("Please provide a response", role="user")
             .with_output(
@@ -160,7 +160,7 @@ async def test_output_model_non_strict_mode():
     invalid_json = '{"name": "test", "score": 150, "active": "invalid"}'
 
     generator = MockValidationGenerator(responses=[invalid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
     chat = await (
         workflow.chat("Please provide a response", role="user")
@@ -183,7 +183,7 @@ async def test_output_model_no_output_model_set():
     invalid_json = '{"invalid": "json", "that": "would", "fail": "validation"}'
 
     generator = MockValidationGenerator(responses=[invalid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
     chat = await workflow.chat("Please provide a response", role="user").run()
 
@@ -203,9 +203,9 @@ async def test_output_model_custom_retry_count():
     ]
 
     generator = MockValidationGenerator(responses=invalid_responses)
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
-    with pytest.raises(cp.errors.WorkflowError):
+    with pytest.raises(agents.errors.WorkflowError):
         await (
             workflow.chat("Please provide a response", role="user")
             .with_output(
@@ -223,9 +223,9 @@ async def test_output_model_zero_retries():
     invalid_json = '{"name": "test", "score": 150, "active": true}'
 
     generator = MockValidationGenerator(responses=[invalid_json])
-    workflow = cp.ChatWorkflow(generator=generator)
+    workflow = agents.ChatWorkflow(generator=generator)
 
-    with pytest.raises(cp.errors.WorkflowError):
+    with pytest.raises(agents.errors.WorkflowError):
         await (
             workflow.chat("Please provide a response", role="user")
             .with_output(DummyOutputModel, strict=True, num_retries=0)

@@ -2,12 +2,12 @@
 
 from unittest.mock import MagicMock
 
-from counterpoint.chat import Message
-from counterpoint.context import RunContext
-from counterpoint.generators import BaseGenerator
-from counterpoint.generators.base import Response
-from counterpoint.workflow import ChatWorkflow
-from counterpoint.tools import Function, ToolCall, tool
+from giskard.agents.chat import Message
+from giskard.agents.context import RunContext
+from giskard.agents.generators import BaseGenerator
+from giskard.agents.generators.base import Response
+from giskard.agents.workflow import ChatWorkflow
+from giskard.agents.tools import Function, ToolCall, tool
 
 
 @tool
