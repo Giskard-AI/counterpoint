@@ -4,12 +4,12 @@ from unittest.mock import patch
 import pytest
 from litellm import ModelResponse
 
-from counterpoint.chat import Chat, Message
-from counterpoint.generators.base import Response
-from counterpoint.generators.litellm_generator import LiteLLMGenerator
-from counterpoint.workflow import ChatWorkflow
-from counterpoint.rate_limiter import RateLimiter
-from counterpoint.templates import MessageTemplate
+from giskard.agents.chat import Chat, Message
+from giskard.agents.generators.base import Response
+from giskard.agents.generators.litellm_generator import LiteLLMGenerator
+from giskard.agents.workflow import ChatWorkflow
+from giskard.agents.rate_limiter import RateLimiter
+from giskard.agents.templates import MessageTemplate
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ async def test_litellm_generator_completion_with_mock(
     generator: LiteLLMGenerator, mock_response
 ):
     with patch(
-        "counterpoint.generators.litellm_generator.acompletion",
+        "giskard.agents.generators.litellm_generator.acompletion",
         return_value=mock_response,
     ):
         response = await generator.complete(
@@ -83,7 +83,7 @@ async def test_litellm_generator_gets_rate_limiter(mock_response):
     rate_limiter = RateLimiter.from_rpm(rpm=60, max_concurrent=1)
     generator = LiteLLMGenerator(model="test-model", rate_limiter=rate_limiter)
     with patch(
-        "counterpoint.generators.litellm_generator.acompletion",
+        "giskard.agents.generators.litellm_generator.acompletion",
         return_value=mock_response,
     ):
         start_time = time.monotonic()
@@ -105,7 +105,7 @@ async def test_litellm_generator_gets_rate_limiter(mock_response):
 async def test_generator_without_rate_limiter(mock_response):
     generator = LiteLLMGenerator(model="test-model")
     with patch(
-        "counterpoint.generators.litellm_generator.acompletion",
+        "giskard.agents.generators.litellm_generator.acompletion",
         return_value=mock_response,
     ):
         start_time = time.monotonic()
