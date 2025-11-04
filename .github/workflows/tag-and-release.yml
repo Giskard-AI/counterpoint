@@ -8,7 +8,8 @@ on:
 permissions:
   contents: write
   packages: read
-
+  id-token: write
+  
 jobs:
   tag-and-release:
     runs-on: ubuntu-latest
