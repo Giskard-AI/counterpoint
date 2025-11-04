@@ -2,5 +2,4 @@
 
 from counterpoint.workflow import ChatWorkflow as Pipeline
 
-
 __all__ = ["Pipeline"]

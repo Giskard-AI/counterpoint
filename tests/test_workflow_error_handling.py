@@ -1,5 +1,5 @@
-from pydantic import Field, PrivateAttr
 import pytest
+from pydantic import Field, PrivateAttr
 
 import counterpoint as cp
 from counterpoint.errors import WorkflowError
