@@ -22,9 +22,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "ipykernel==7.0.1",
+    "ipykernel==7.1.0",
     "pip-audit==2.9.0",
-    "pylint-pydantic==0.4.0",
+    "pylint-pydantic==0.4.1",
     "pytest==8.4.2",
     "pytest-asyncio==1.2.0",
 ]
