@@ -1,11 +1,12 @@
 from typing import Any
-from pydantic import BaseModel, Field, ValidationError, PrivateAttr
+
 import pytest
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError
 
 import counterpoint as cp
 from counterpoint.chat import Message
-from counterpoint.generators.base import Response
 from counterpoint.generators import BaseGenerator, GenerationParams
+from counterpoint.generators.base import Response
 
 
 class DummyOutputModel(BaseModel):

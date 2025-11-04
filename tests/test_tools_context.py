@@ -6,8 +6,8 @@ from counterpoint.chat import Message
 from counterpoint.context import RunContext
 from counterpoint.generators import BaseGenerator
 from counterpoint.generators.base import Response
-from counterpoint.workflow import ChatWorkflow
 from counterpoint.tools import Function, ToolCall, tool
+from counterpoint.workflow import ChatWorkflow
 
 
 @tool

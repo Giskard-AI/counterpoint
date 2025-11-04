@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import Any, Dict, List
-from typing_extensions import deprecated
 
 from jinja2 import Template
 from pydantic import BaseModel, Field
+from typing_extensions import deprecated
 
 from counterpoint.chat import Message
 

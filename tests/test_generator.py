@@ -7,9 +7,9 @@ from litellm import ModelResponse
 from counterpoint.chat import Chat, Message
 from counterpoint.generators.base import Response
 from counterpoint.generators.litellm_generator import LiteLLMGenerator
-from counterpoint.workflow import ChatWorkflow
 from counterpoint.rate_limiter import RateLimiter
 from counterpoint.templates import MessageTemplate
+from counterpoint.workflow import ChatWorkflow
 
 
 @pytest.fixture
