@@ -1,6 +1,6 @@
 [project]
-name = "counterpoint"
-version = "0.2.3"
+name = "giskard-agents"
+version = "0.3.0"
 description = " A lightweight library that orchestrates LLM completions and agents in parallel workflows "
 readme = "README.md"
 license = { text = "MIT" }
@@ -22,9 +22,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "ipykernel==7.0.1",
+    "ipykernel==7.1.0",
     "pip-audit==2.9.0",
-    "pylint-pydantic==0.4.0",
+    "pylint-pydantic==0.4.1",
     "pytest==8.4.2",
     "pytest-asyncio==1.2.0",
 ]
@@ -40,3 +40,6 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/giskard"]

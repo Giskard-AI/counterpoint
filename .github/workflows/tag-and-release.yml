@@ -8,7 +8,8 @@ on:
 permissions:
   contents: write
   packages: read
-
+  id-token: write
+  
 jobs:
   tag-and-release:
     runs-on: ubuntu-latest
@@ -57,6 +58,19 @@ jobs:
 
       - name: Build package
         run: uv build
+
+      - name: Verify artifacts exist
+        run: |
+          ls -l dist
+          shopt -s nullglob
+          files=(dist/*.tar.gz dist/*.whl)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No distribution files found in dist/"
+            exit 1
+          fi
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
         env:
